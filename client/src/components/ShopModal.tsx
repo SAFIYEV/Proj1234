@@ -19,6 +19,18 @@ export const ShopModal: React.FC<ShopModalProps> = ({ isOpen, itemType, onClose 
   const { user, fetchUser } = useUserStore();
   const [purchasing, setPurchasing] = useState<string | null>(null);
   const [isVisible, setIsVisible] = useState(false);
+  const getTypeEmoji = (type: ItemType) => {
+    if (type === ItemType.CAP) return '🧢';
+    if (type === ItemType.GLASSES) return '👓';
+    if (type === ItemType.NECKLACE) return '💎';
+    if (type === ItemType.UNDERWEAR) return '🩲';
+    if (type === ItemType.RING) return '💍';
+    if (type === ItemType.SOCKS) return '🧦';
+    if (type === ItemType.SHIRT) return '👕';
+    if (type === ItemType.PANTS) return '👖';
+    if (type === ItemType.SHOES) return '👟';
+    return '🎭';
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -308,14 +320,14 @@ export const ShopModal: React.FC<ShopModalProps> = ({ isOpen, itemType, onClose 
                             <div className="relative flex items-center gap-2.5 sm:gap-3">
                               {/* Item Image - Left */}
                               <div className="w-14 h-14 sm:w-18 sm:h-18 flex-shrink-0 rounded-2xl flex items-center justify-center overflow-hidden">
-                                {item.imageUrl ? (
+                                {item.imageUrl && !item.imageUrl.includes('/images/') ? (
                                   <img
                                     src={item.imageUrl}
                                     alt={item.name}
                                     className="w-full h-full object-contain rounded-2xl"
                                   />
                                 ) : (
-                                  <div className="text-xl sm:text-2xl">🎭</div>
+                                  <div className="text-xl sm:text-2xl">{getTypeEmoji(item.type)}</div>
                                 )}
                               </div>
                               

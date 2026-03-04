@@ -11,6 +11,18 @@ interface PashuAvatarProps {
 
 export const PashuAvatar: React.FC<PashuAvatarProps> = ({ user, onSlotClick }) => {
   const { setSelectedType } = useItemsStore();
+  const getTypeEmoji = (type: ItemType) => {
+    if (type === ItemType.CAP) return '🧢';
+    if (type === ItemType.GLASSES) return '👓';
+    if (type === ItemType.NECKLACE) return '💎';
+    if (type === ItemType.UNDERWEAR) return '🩲';
+    if (type === ItemType.RING) return '💍';
+    if (type === ItemType.SOCKS) return '🧦';
+    if (type === ItemType.SHIRT) return '👕';
+    if (type === ItemType.PANTS) return '👖';
+    if (type === ItemType.SHOES) return '👟';
+    return '🎭';
+  };
 
   const handleSlotClick = (type: ItemType) => {
     setSelectedType(type);
@@ -24,6 +36,7 @@ export const PashuAvatar: React.FC<PashuAvatarProps> = ({ user, onSlotClick }) =
   // Функция для рендера слота
   const renderSlot = (slot: any) => {
     const equippedUserItem = getEquippedItem(slot.id);
+    const hasRenderableImage = !!equippedUserItem?.item.imageUrl && !equippedUserItem.item.imageUrl.includes('/images/');
     
     return (
       <div key={slot.id} className="flex flex-col items-center relative">
@@ -31,24 +44,16 @@ export const PashuAvatar: React.FC<PashuAvatarProps> = ({ user, onSlotClick }) =
           onClick={() => handleSlotClick(slot.id)}
           className="border-2 w-[15vw] h-[15vw] min-w-12 min-h-12 max-w-20 max-h-20 bg-white bg-opacity-10 block rounded-2xl shadow-lg hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center"
           style={{
-            backgroundImage: equippedUserItem?.item.imageUrl ? `url(${equippedUserItem.item.imageUrl})` : 'none',
+            backgroundImage: hasRenderableImage ? `url(${equippedUserItem?.item.imageUrl})` : 'none',
             backgroundSize: 'contain',
             backgroundPosition: 'center',
             backgroundRepeat: 'no-repeat',
           }}
           title={slot.name}
         >
-          {!equippedUserItem && (
+          {!hasRenderableImage && (
             <span className="text-gray-400 text-sm font-light">
-              {slot.id === ItemType.CAP && '🧢'}
-              {slot.id === ItemType.GLASSES && '👓'}
-              {slot.id === ItemType.NECKLACE && '💎'}
-              {slot.id === ItemType.UNDERWEAR && '🩲'}
-              {slot.id === ItemType.RING && '💍'}
-              {slot.id === ItemType.SOCKS && '🧦'}
-              {slot.id === ItemType.SHIRT && '👕'}
-              {slot.id === ItemType.PANTS && '👖'}
-              {slot.id === ItemType.SHOES && '👟'}
+              {getTypeEmoji(slot.id)}
             </span>
           )}
         </button>
