@@ -440,3 +440,34 @@ export const prepareShareMessage = async (): Promise<string> => {
 
   return data.prepared_message_id;
 };
+
+export const claimChannelReward = async (channelUrl: string): Promise<{ message: string; stars_added: number; already_claimed: boolean }> => {
+  const telegramUser = initData.user();
+  if (!telegramUser?.id) {
+    throw new Error('Не удалось определить Telegram ID');
+  }
+
+  const { data, error } = await supabase.functions.invoke('claim-channel-reward', {
+    body: {
+      telegram_id: telegramUser.id.toString(),
+      username: telegramUser.username || null,
+      first_name: (telegramUser as any).firstName || (telegramUser as any).first_name || null,
+      last_name: (telegramUser as any).lastName || (telegramUser as any).last_name || null,
+      channel_url: channelUrl,
+    },
+  });
+
+  if (error) {
+    throw new Error(error.message || 'Не удалось получить награду');
+  }
+
+  if (!data?.success) {
+    throw new Error(data?.error || data?.message || 'Не удалось получить награду');
+  }
+
+  return {
+    message: data.message || 'Награда получена',
+    stars_added: data.stars_added || 0,
+    already_claimed: !!data.already_claimed,
+  };
+};

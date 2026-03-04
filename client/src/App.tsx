@@ -4,9 +4,16 @@ import { PashuAvatar } from './components/PashuAvatar';
 import { ShopModal } from './components/ShopModal';
 import { ItemType } from './types';
 import { useUserStore } from './stores/useUserStore';
-import { init, miniApp, hapticFeedback, initData } from '@telegram-apps/sdk-react';
+import { init, miniApp, hapticFeedback, initData, openTelegramLink } from '@telegram-apps/sdk-react';
 import { SLOT_POSITIONS } from './utils/constants';
 import { toPng } from 'html-to-image';
+import { claimChannelReward } from './services/api';
+
+const EARN_CHANNELS = [
+  'https://t.me/web3frensCA',
+  'https://t.me/minudefi',
+  'https://t.me/AILumiere_news',
+];
 
 function App() {
   const [isReady, setIsReady] = useState(false);
@@ -38,6 +45,8 @@ function App() {
   }, []);
   const { user, loading, error, fetchUser, createUser } = useUserStore();
   const [shopOpen, setShopOpen] = useState(false);
+  const [earnOpen, setEarnOpen] = useState(false);
+  const [claimingChannel, setClaimingChannel] = useState<string | null>(null);
   const [selectedItemType, setSelectedItemType] = useState<ItemType | null>(null);
   const captureRef = useRef<HTMLDivElement>(null);
 
@@ -167,6 +176,21 @@ function App() {
     }
   };
 
+  const handleClaimReward = async (channelUrl: string) => {
+    if (!user) return;
+    setClaimingChannel(channelUrl);
+
+    try {
+      const result = await claimChannelReward(channelUrl);
+      toast.success(result.message);
+      await fetchUser(user.telegramId);
+    } catch (e: any) {
+      toast.error(e.message || 'Не удалось получить награду');
+    } finally {
+      setClaimingChannel(null);
+    }
+  };
+
   return (
     <div className="min-h-[100dvh] h-[100dvh] bg-dark text-white">
       <Toaster 
@@ -181,6 +205,15 @@ function App() {
 
       {/* Основной контент */}
       <div className="h-[100dvh] bg-dark text-white flex flex-col overflow-hidden">
+        <div className="px-4 pt-[calc(0.5rem+env(safe-area-inset-top))] pb-2 flex justify-end">
+          <button
+            onClick={() => setEarnOpen(true)}
+            className="bg-emerald-500 hover:bg-emerald-400 text-black font-bold px-4 py-2 rounded-lg"
+          >
+            Заработать
+          </button>
+        </div>
+
         {/* Аватар Паши - занимает всё свободное место */}
         <div className="flex-1 w-full h-full">
           <PashuAvatar user={user} onSlotClick={handleSlotClick} captureRef={captureRef} />
@@ -263,6 +296,43 @@ function App() {
         itemType={selectedItemType}
         onClose={handleCloseShop}
       />
+
+      {earnOpen && (
+        <div className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-end">
+          <div className="w-full bg-slate-900 rounded-t-2xl p-4 max-h-[75vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold">Заработать ⭐</h3>
+              <button onClick={() => setEarnOpen(false)} className="text-xl">✕</button>
+            </div>
+            <p className="text-sm text-slate-300 mb-4">
+              Подпишись на канал и получи +5 ⭐. Награда один раз на канал.
+            </p>
+
+            <div className="space-y-3">
+              {EARN_CHANNELS.map((channel) => (
+                <div key={channel} className="rounded-lg bg-slate-800 p-3">
+                  <div className="text-sm text-cyan-300 mb-2">{channel}</div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => openTelegramLink(channel)}
+                      className="flex-1 bg-blue-500 hover:bg-blue-400 text-white font-semibold py-2 rounded-lg"
+                    >
+                      Перейти
+                    </button>
+                    <button
+                      onClick={() => handleClaimReward(channel)}
+                      disabled={claimingChannel === channel}
+                      className="flex-1 bg-emerald-500 hover:bg-emerald-400 disabled:bg-slate-600 text-black font-semibold py-2 rounded-lg"
+                    >
+                      {claimingChannel === channel ? 'Проверяем...' : 'Получить +5 ⭐'}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
