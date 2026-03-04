@@ -13,5 +13,3 @@ UPDATE items SET name = 'Носки Telegram' WHERE type = 'SOCKS' AND tier IN (
 UPDATE items SET name = 'Сапоги Telegram' WHERE type = 'SHOES' AND tier IN ('JEW', 'DUBAI_SYNAGOGUE');
 UPDATE items SET name = 'Торс' WHERE type = 'SHIRT' AND tier IN ('JEW', 'DUBAI_SYNAGOGUE');
 
--- Temporary pricing setup requested by product owner
-UPDATE items SET price = 1;

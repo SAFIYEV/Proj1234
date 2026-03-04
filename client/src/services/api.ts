@@ -333,6 +333,55 @@ export const paymentsApi = {
   }
 };
 
+export const starsApi = {
+  purchaseWithStars: async (itemId: string): Promise<void> => {
+    const telegramUser = initData.user();
+    const telegramId = telegramUser?.id?.toString() || '';
+    if (!telegramId) throw new Error('Не удалось определить Telegram ID');
+
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('id, stars')
+      .eq('telegram_id', telegramId)
+      .single();
+    if (userError || !user) throw new Error('Пользователь не найден');
+
+    const { data: item, error: itemError } = await supabase
+      .from('items')
+      .select('id, type, price')
+      .eq('id', itemId)
+      .single();
+    if (itemError || !item) throw new Error('Предмет не найден');
+
+    const { data: existingUserItem } = await supabase
+      .from('user_items')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('item_id', itemId)
+      .maybeSingle();
+    if (existingUserItem) throw new Error('У вас уже есть этот предмет');
+
+    if ((user.stars || 0) < item.price) {
+      throw new Error(`Недостаточно звёзд. Нужно ${item.price} ⭐`);
+    }
+
+    const { error: insertError } = await supabase
+      .from('user_items')
+      .insert({
+        user_id: user.id,
+        item_id: item.id,
+        equipped: false,
+      });
+    if (insertError) throw insertError;
+
+    const { error: updateStarsError } = await supabase
+      .from('users')
+      .update({ stars: (user.stars || 0) - item.price })
+      .eq('id', user.id);
+    if (updateStarsError) throw updateStarsError;
+  },
+};
+
 // Надеть вещь (снять все старые этого типа и надеть новую)
 export const wearItem = async (itemId: string): Promise<void> => {
   const telegramUser = initData.user();

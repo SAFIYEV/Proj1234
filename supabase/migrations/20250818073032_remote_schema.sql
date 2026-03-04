@@ -202,6 +202,3 @@ INSERT INTO items (type, tier, name, weared, coolness, price, image_url) VALUES
   ('NECKLACE', 'JEW', 'Половая тряпка чёрного цвета', 16, 16000, 16000000, '/images/necklace_jew.png'),
   ('GLASSES', 'JEW', 'Линзы', 17, 18000, 17000000, '/images/glasses_jew.png'),
   ('CAP', 'JEW', 'Кипа', 18, 20000, 18000000, '/images/cap_jew.png');
-
--- Temporary pricing setup requested by product owner
-UPDATE items SET price = 1;

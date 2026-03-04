@@ -205,7 +205,11 @@ function App() {
 
       {/* Основной контент */}
       <div className="h-[100dvh] bg-dark text-white flex flex-col overflow-hidden">
-        <div className="px-4 pt-[calc(0.5rem+env(safe-area-inset-top))] pb-2 flex justify-end">
+        <div className="px-4 pt-[calc(0.5rem+env(safe-area-inset-top))] pb-2 flex items-center justify-between gap-3">
+          <div className="text-xs bg-slate-900/70 border border-slate-700 rounded-lg px-3 py-2">
+            <div className="text-slate-300">ID: <span className="text-cyan-300 font-semibold">{user.telegramId}</span></div>
+            <div className="text-slate-300">Баланс: <span className="text-yellow-300 font-semibold">{user.stars} ⭐</span></div>
+          </div>
           <button
             onClick={() => setEarnOpen(true)}
             className="bg-emerald-500 hover:bg-emerald-400 text-black font-bold px-4 py-2 rounded-lg"

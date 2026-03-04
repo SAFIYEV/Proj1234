@@ -5,8 +5,8 @@ import { useItemsStore } from '../stores/useItemsStore';
 import { useUserStore } from '../stores/useUserStore';
 import toast from 'react-hot-toast';
 import { formatPrice, checkItemOwnership } from '../lib/payment';
-import { paymentsApi, wearItem } from '../services/api';
-import { hapticFeedback, openTelegramLink } from '@telegram-apps/sdk-react';
+import { starsApi, wearItem } from '../services/api';
+import { hapticFeedback } from '@telegram-apps/sdk-react';
 
 interface ShopModalProps {
   isOpen: boolean;
@@ -72,45 +72,9 @@ export const ShopModal: React.FC<ShopModalProps> = ({ isOpen, itemType, onClose 
     hapticFeedback.impactOccurred('medium');
 
     try {
-      const invoice = await paymentsApi.createPaymentInvoice(
-        user.id,
-        user.telegramId, 
-        user.username || user.firstName || '', 
-        item.id, 
-        item.name, 
-        item.price
-      );
-      
-      if (!invoice?.invoice_url || !invoice?.payload) {
-        toast.error('Не удалось создать инвойс');
-        return;
-      }
-
-      // Открываем инвойс через новый SDK
-      try {
-        // Используем utils.openTelegramLink для открытия инвойса
-        openTelegramLink(invoice.invoice_url);
-        
-        // Запускаем проверку платежа через некоторое время
-        setTimeout(async () => {
-          try {
-            // Обновляем данные пользователя для проверки покупки
-            await fetchUser(user.telegramId);
-            
-            // Проверяем, появился ли предмет у пользователя
-            const updatedUser = useUserStore.getState().user;
-            if (updatedUser && checkItemOwnership(updatedUser, item)) {
-              handleClose();
-            }
-          } catch (e) {
-            console.error('Error checking payment result:', e);
-          }
-        }, 3000);
-        
-      } catch (e) {
-        console.error('Ошибка при открытии инвойса:', e);
-        toast.error('Не удалось открыть оплату');
-      }
+      await starsApi.purchaseWithStars(item.id);
+      await fetchUser(user.telegramId);
+      toast.success(`Куплено за ${item.price} ⭐`);
     } catch (error: any) {
       console.error('Purchase error:', error);
       toast.error(error.message || 'Ошибка при покупке');

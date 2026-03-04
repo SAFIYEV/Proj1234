@@ -44,8 +44,11 @@ UPDATE items SET name = 'Носки Telegram' WHERE type = 'SOCKS' AND tier::tex
 UPDATE items SET name = 'Сапоги Telegram' WHERE type = 'SHOES' AND tier::text IN ('JEW', 'DUBAI_SYNAGOGUE');
 UPDATE items SET name = 'Торс' WHERE type = 'SHIRT' AND tier::text IN ('JEW', 'DUBAI_SYNAGOGUE');
 
--- 3) Temporary prices: all items = 1 star
-UPDATE items SET price = 1;
+-- 3) Tier pricing in Stars
+UPDATE items SET price = 100 WHERE tier::text = 'POOR';
+UPDATE items SET price = 500 WHERE tier::text = 'WORKER';
+UPDATE items SET price = 1000 WHERE tier::text = 'RICH';
+UPDATE items SET price = 5000 WHERE tier::text IN ('JEW', 'DUBAI_SYNAGOGUE');
 
 -- 4) Bootstrap first player balance
 INSERT INTO users (telegram_id, stars)
