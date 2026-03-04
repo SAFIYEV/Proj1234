@@ -7,15 +7,16 @@ import pashaAvatar from '../../assets/avatars/pasha-avatar_test.png';
 interface PashuAvatarProps {
   user: User;
   onSlotClick: (type: ItemType) => void;
+  captureRef?: React.RefObject<HTMLDivElement>;
 }
 
-export const PashuAvatar: React.FC<PashuAvatarProps> = ({ user, onSlotClick }) => {
+export const PashuAvatar: React.FC<PashuAvatarProps> = ({ user, onSlotClick, captureRef }) => {
   const { setSelectedType } = useItemsStore();
   const getTypeEmoji = (type: ItemType) => {
     if (type === ItemType.CAP) return '🧢';
     if (type === ItemType.GLASSES) return '👓';
     if (type === ItemType.NECKLACE) return '💎';
-    if (type === ItemType.UNDERWEAR) return '🩲';
+    if (type === ItemType.UNDERWEAR) return '⌚';
     if (type === ItemType.RING) return '💍';
     if (type === ItemType.SOCKS) return '🧦';
     if (type === ItemType.SHIRT) return '👕';
@@ -87,6 +88,7 @@ export const PashuAvatar: React.FC<PashuAvatarProps> = ({ user, onSlotClick }) =
       
       {/* Основная область с фоном Паши и боковыми слотами */}
       <div 
+        ref={captureRef}
         className="flex-1 flex items-center justify-between px-4 relative"
         style={{
           backgroundImage: `url(${pashaAvatar})`,

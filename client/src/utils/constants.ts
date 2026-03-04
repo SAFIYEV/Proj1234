@@ -7,7 +7,7 @@ export const SLOT_POSITIONS: SlotPosition[] = [
   { id: ItemType.NECKLACE, name: 'Ожерелье', x: 0, y: 0, description: 'Украшение на шею для красоты и статуса'},
   
   // Слева - 3 иконки вертикально друг под другом (прижаты ближе к краю)
-  { id: ItemType.UNDERWEAR, name: 'Трусы', x: 4, y: 20, description: 'Нижнее белье для комфорта и гигиены'},
+  { id: ItemType.UNDERWEAR, name: 'Часы', x: 4, y: 20, description: 'Наручные часы как показатель статуса'},
   { id: ItemType.RING, name: 'Кольцо', x: 4, y: 35, description: 'Украшение на палец как символ статуса'},
   { id: ItemType.SOCKS, name: 'Носки', x: 4, y: 50, description: 'Тепло и комфорт для ног'},
   

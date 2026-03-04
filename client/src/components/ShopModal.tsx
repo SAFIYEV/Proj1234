@@ -23,7 +23,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({ isOpen, itemType, onClose 
     if (type === ItemType.CAP) return '🧢';
     if (type === ItemType.GLASSES) return '👓';
     if (type === ItemType.NECKLACE) return '💎';
-    if (type === ItemType.UNDERWEAR) return '🩲';
+    if (type === ItemType.UNDERWEAR) return '⌚';
     if (type === ItemType.RING) return '💍';
     if (type === ItemType.SOCKS) return '🧦';
     if (type === ItemType.SHIRT) return '👕';

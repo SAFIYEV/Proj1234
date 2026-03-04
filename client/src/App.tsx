@@ -1,12 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
 import { PashuAvatar } from './components/PashuAvatar';
 import { ShopModal } from './components/ShopModal';
 import { ItemType } from './types';
 import { useUserStore } from './stores/useUserStore';
-import { prepareShareMessage } from './services/api';
-import { init, shareMessage, miniApp, hapticFeedback, initData } from '@telegram-apps/sdk-react';
+import { init, miniApp, hapticFeedback, initData } from '@telegram-apps/sdk-react';
 import { SLOT_POSITIONS } from './utils/constants';
+import { toPng } from 'html-to-image';
 
 function App() {
   const [isReady, setIsReady] = useState(false);
@@ -39,6 +39,7 @@ function App() {
   const { user, loading, error, fetchUser, createUser } = useUserStore();
   const [shopOpen, setShopOpen] = useState(false);
   const [selectedItemType, setSelectedItemType] = useState<ItemType | null>(null);
+  const captureRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (isReady && telegramId) {
@@ -120,34 +121,49 @@ function App() {
 
   const handleShare = async () => {
     hapticFeedback.impactOccurred('medium');
-    // Пробуем использовать shareMessage как основной метод
-    const loadingToast = toast.loading('Подготавливаем карточку...');
-    
+    const loadingToast = toast.loading('Готовим PNG...');
+
     try {
-      prepareShareMessage()
-      .then((preparedMessageId) => {
-        console.log('preparedMessageId', preparedMessageId);
-        shareMessage(preparedMessageId)
-        .then((result) => {
-          console.log('shareMessage result:', result);
-        })
-        .catch((error) => {
-          console.error('shareMessage failed:', error);
-        });
-      })
-      .catch((error) => {
-        console.error('prepareShareMessage failed:', error);
-        toast.error('Не удалось подготовить карточку. Используем обычный шаринг...');
-      })
-      .finally(() => {
-        toast.dismiss(loadingToast);
+      if (!captureRef.current) {
+        throw new Error('Не найдена область для сохранения PNG');
+      }
+
+      const dataUrl = await toPng(captureRef.current, {
+        cacheBust: true,
+        pixelRatio: 2,
+        backgroundColor: '#1a1a1a',
       });
 
-      console.log('Подготавливаем данные для шаринга...');
+      const response = await fetch(dataUrl);
+      const blob = await response.blob();
+      const file = new File([blob], `pashu-${Date.now()}.png`, { type: 'image/png' });
+
+      const canShareFiles =
+        typeof navigator !== 'undefined' &&
+        'canShare' in navigator &&
+        typeof navigator.canShare === 'function' &&
+        navigator.canShare({ files: [file] });
+
+      if (canShareFiles && 'share' in navigator) {
+        await navigator.share({
+          files: [file],
+          title: 'Мой Паша Дуров',
+          text: 'Мой Паша Дуров из игры',
+        });
+      } else {
+        const link = document.createElement('a');
+        link.href = dataUrl;
+        link.download = `pashu-${Date.now()}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast('PNG сохранен. Теперь отправь его в Telegram.');
+      }
     } catch (error) {
+      console.error('share png failed:', error);
+      toast.error('Не удалось подготовить PNG');
+    } finally {
       toast.dismiss(loadingToast);
-      console.error('prepareShareMessage failed:', error);
-      toast.error('Не удалось подготовить карточку. Используем обычный шаринг...');
     }
   };
 
@@ -167,7 +183,7 @@ function App() {
       <div className="h-[100dvh] bg-dark text-white flex flex-col overflow-hidden">
         {/* Аватар Паши - занимает всё свободное место */}
         <div className="flex-1 w-full h-full">
-          <PashuAvatar user={user} onSlotClick={handleSlotClick} />
+          <PashuAvatar user={user} onSlotClick={handleSlotClick} captureRef={captureRef} />
         </div>
 
         {/* Блоки одетости и крутости - внизу */}

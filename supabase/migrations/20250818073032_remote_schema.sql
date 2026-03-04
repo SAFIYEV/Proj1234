@@ -160,8 +160,8 @@ CREATE TRIGGER update_payments_updated_at BEFORE UPDATE ON payments
 -- Insert items data according to the provided table
 INSERT INTO items (type, tier, name, weared, coolness, price, image_url) VALUES
   -- Нищук tier
-  ('UNDERWEAR', 'POOR', 'Рваные трусы', 1, 0, 1, '/images/underwear_poor.png'),
-  ('SOCKS', 'POOR', 'Дырявые носки', 5, 1, 50, '/images/socks_poor.png'),
+  ('UNDERWEAR', 'POOR', 'Часы с рынка', 1, 0, 1, '/images/underwear_poor.png'),
+  ('SOCKS', 'POOR', 'Носки с рынка', 5, 1, 50, '/images/socks_poor.png'),
   ('SHOES', 'POOR', 'Стоптанные кроссовки', 12, 2, 120, '/images/shoes_poor.png'),
   ('PANTS', 'POOR', 'Потертые джинсы', 13, 5, 130, '/images/pants_poor.png'),
   ('RING', 'POOR', 'Пластырь', 4, 3, 40, '/images/ring_poor.png'),
@@ -171,8 +171,8 @@ INSERT INTO items (type, tier, name, weared, coolness, price, image_url) VALUES
   ('CAP', 'POOR', 'Шапка бомжа', 18, 10, 180, '/images/cap_poor.png'),
 
   -- Работяга tier
-  ('UNDERWEAR', 'WORKER', 'Семейники', 1, 100, 100, '/images/underwear_worker.png'),
-  ('SOCKS', 'WORKER', 'Носки с рынка', 5, 110, 5000, '/images/socks_worker.png'),
+  ('UNDERWEAR', 'WORKER', 'Кварцевые часы', 1, 100, 100, '/images/underwear_worker.png'),
+  ('SOCKS', 'WORKER', 'Чёрные носки', 5, 110, 5000, '/images/socks_worker.png'),
   ('SHOES', 'WORKER', 'Туфли', 12, 120, 12000, '/images/shoes_worker.png'),
   ('PANTS', 'WORKER', 'Брюки', 13, 150, 13000, '/images/pants_worker.png'),
   ('RING', 'WORKER', 'Печатка', 4, 130, 4000, '/images/ring_worker.png'),
@@ -182,8 +182,8 @@ INSERT INTO items (type, tier, name, weared, coolness, price, image_url) VALUES
   ('CAP', 'WORKER', 'Лысина', 18, 200, 18000, '/images/cap_worker.png'),
 
   -- Мажор tier  
-  ('UNDERWEAR', 'RICH', 'Стринги', 1, 1000, 10000, '/images/underwear_rich.png'),
-  ('SOCKS', 'RICH', 'Чёрные носки', 5, 1100, 500000, '/images/socks_rich.png'),
+  ('UNDERWEAR', 'RICH', 'Rolex', 1, 1000, 10000, '/images/underwear_rich.png'),
+  ('SOCKS', 'RICH', 'Инопланетные носки', 5, 1100, 500000, '/images/socks_rich.png'),
   ('SHOES', 'RICH', 'Кроссовки', 12, 1200, 1200000, '/images/shoes_rich.png'),
   ('PANTS', 'RICH', 'Джинсы', 13, 1500, 1300000, '/images/pants_rich.png'),
   ('RING', 'RICH', 'Кольцо с брильянтом 45 карат', 4, 1300, 400000, '/images/ring_rich.png'),
@@ -193,12 +193,12 @@ INSERT INTO items (type, tier, name, weared, coolness, price, image_url) VALUES
   ('CAP', 'RICH', 'Кепка с логотипом TON', 18, 2000, 1800000, '/images/cap_rich.png'),
 
   -- Дубайский Синагог tier
-  ('UNDERWEAR', 'JEW', 'Ректальный ускоритиель', 1, 100000, 100000, '/images/underwear_jew.png'),
-  ('SOCKS', 'JEW', 'Носки из волос девственниц', 5, 110000, 5000000, '/images/socks_jew.png'),
-  ('SHOES', 'JEW', 'Говнодавы по колено', 12, 12000, 12000000, '/images/shoes_jew.png'),
+  ('UNDERWEAR', 'JEW', 'Часы Telegram', 1, 100000, 100000, '/images/underwear_jew.png'),
+  ('SOCKS', 'JEW', 'Носки Telegram', 5, 110000, 5000000, '/images/socks_jew.png'),
+  ('SHOES', 'JEW', 'Сапоги Telegram', 12, 12000, 12000000, '/images/shoes_jew.png'),
   ('PANTS', 'JEW', 'Штаны как в Дюне', 13, 15000, 13000000, '/images/pants_jew.png'),
   ('RING', 'JEW', 'Обручальное кольцо', 4, 13000, 4000000, '/images/ring_jew.png'),
-  ('SHIRT', 'JEW', 'Охуительный торс', 14, 14000, 15000000, '/images/shirt_jew.png'),
+  ('SHIRT', 'JEW', 'Торс', 14, 14000, 15000000, '/images/shirt_jew.png'),
   ('NECKLACE', 'JEW', 'Половая тряпка чёрного цвета', 16, 16000, 16000000, '/images/necklace_jew.png'),
   ('GLASSES', 'JEW', 'Линзы', 17, 18000, 17000000, '/images/glasses_jew.png'),
   ('CAP', 'JEW', 'Кипа', 18, 20000, 18000000, '/images/cap_jew.png');
