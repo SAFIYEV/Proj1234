@@ -1,0 +1,27 @@
+
+# Dockerfile для бота
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Установка базовых зависимостей
+RUN apk add --no-cache python3
+
+# Копируем package.json и устанавливаем зависимости
+COPY bot/package*.json ./
+RUN npm install --only=production
+
+# Копируем исходный код
+COPY bot/src ./src
+COPY bot/tsconfig.json ./
+
+# Устанавливаем dev зависимости для сборки
+RUN npm install
+RUN npm run build
+
+# Удаляем dev зависимости
+RUN npm install --only=production && npm cache clean --force
+
+EXPOSE 3001
+
+CMD ["npm", "start"]

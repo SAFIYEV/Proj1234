@@ -1,0 +1,14 @@
+{
+  "name": "oden-pashu",
+  "version": "1.0.0",
+  "description": "Telegram Mini App - Одень Пашу",
+  "scripts": {
+    "build": "npm run build"
+  },
+  "keywords": ["telegram", "mini-app", "tma", "bot"],
+  "author": "kirillcernenko",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
