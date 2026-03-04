@@ -7,9 +7,11 @@ serve(async (req) => {
   }
 
   try {
-    const { user_id, telegram_id, user_name, item_id, item_name, amount, currency } = await req.json()
+    const { user_id, telegram_id, user_name, item_id, item_name, amount } = await req.json()
 
-    if (!telegram_id || !item_id || !item_name || !amount) {
+    const starsAmount = Math.max(1, Number.parseInt(String(amount), 10) || 0)
+
+    if (!telegram_id || !item_id || !item_name || !starsAmount) {
       throw new Error('Missing required fields')
     }
 
@@ -20,10 +22,10 @@ serve(async (req) => {
 
     const invoiceData = {
       title: `Покупка: ${item_name}`,
-      description: `Купите ${item_name} за ${amount} звёзд`,
+      description: `Купите ${item_name} за ${starsAmount} звёзд`,
       payload: `odenpashu_${user_id}_${item_id}_${Date.now()}`,
-      currency: currency || 'XTR',
-      prices: [{ label: `${item_name}`, amount: amount }]
+      currency: 'XTR',
+      prices: [{ label: `${item_name}`, amount: starsAmount }]
     }
 
     const response = await fetch(`https://api.telegram.org/bot${botToken}/createInvoiceLink`, {
