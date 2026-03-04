@@ -2,13 +2,15 @@ import { supabase, Tables } from '../lib/supabase';
 import { initData } from '@telegram-apps/sdk-react';
 import { User, Item, PaymentData, ItemType, ItemTier } from '../types';
 
-const CDN_BASE_URL = 'https://oden-pashu.sirv.com';
-
 const resolveImageUrl = (url: string | null): string | undefined => {
   if (!url) return undefined;
   if (url.startsWith('http://') || url.startsWith('https://')) return url;
-  if (url.startsWith('/')) return `${CDN_BASE_URL}${url}`;
-  return `${CDN_BASE_URL}/${url}`;
+
+  // Local generated assets are served from /img in Vite public folder.
+  // Also handle legacy /images and _jew filename variants.
+  const normalized = url.replace('/images/', '/img/').replace('_jew.png', '_dubai.png');
+  if (normalized.startsWith('/')) return `${import.meta.env.BASE_URL}${normalized.slice(1)}`;
+  return `${import.meta.env.BASE_URL}${normalized}`;
 };
 
 // Helper function to transform Supabase user to our User type
