@@ -24,10 +24,17 @@ export const useUserStore = create<UserState>((set) => ({
       const user = await userApi.getUserByTelegramId(telegramId);
       set({ user, loading: false });
     } catch (error: any) {
+      // Let caller handle first-run flow (create user)
+      if (error?.message === 'USER_NOT_FOUND') {
+        set({ loading: false, error: null });
+        throw error;
+      }
+
       set({ 
         error: error.message || 'Не удалось загрузить пользователя',
         loading: false 
       });
+      throw error;
     }
   },
 

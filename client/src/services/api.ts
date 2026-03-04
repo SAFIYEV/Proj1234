@@ -91,9 +91,10 @@ export const userApi = {
         )
       `)
       .eq('telegram_id', telegramId)
-      .single();
+      .maybeSingle();
 
     if (error) throw error;
+    if (!user) throw new Error('USER_NOT_FOUND');
 
     // Get referrals count
     const { count: referralsCount } = await supabase
@@ -121,7 +122,7 @@ export const userApi = {
       .select('id')
       .eq('user_id', user.id)
       .eq('item_id', itemId)
-      .single();
+      .maybeSingle();
 
     if (existingItem) {
       throw new Error('Item already owned');
@@ -194,7 +195,7 @@ export const paymentsApi = {
       .select('id')
       .eq('user_id', userId)
       .eq('item_id', itemId)
-      .single();
+      .maybeSingle();
 
     if (existingItem) {
       console.log('Item already owned');
@@ -258,7 +259,7 @@ export const paymentsApi = {
       .select('id')
       .eq('user_id', user.id)
       .eq('item_id', itemId)
-      .single();
+      .maybeSingle();
 
     if (existingUserItem) {
       throw new Error('Item already owned');
