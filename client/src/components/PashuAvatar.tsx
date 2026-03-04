@@ -2,6 +2,7 @@ import React from 'react';
 import { User, ItemType } from '../types';
 import { SLOT_POSITIONS } from '../utils/constants';
 import { useItemsStore } from '../stores/useItemsStore';
+import pashaAvatar from '../../assets/avatars/pasha-avatar_test.png';
 
 interface PashuAvatarProps {
   user: User;
@@ -28,7 +29,7 @@ export const PashuAvatar: React.FC<PashuAvatarProps> = ({ user, onSlotClick }) =
       <div key={slot.id} className="flex flex-col items-center relative">
         <button
           onClick={() => handleSlotClick(slot.id)}
-          className="border-2 w-[15vw] h-[15vw] bg-white bg-opacity-10 block rounded-2xl shadow-lg hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center"
+          className="border-2 w-[15vw] h-[15vw] min-w-12 min-h-12 max-w-20 max-h-20 bg-white bg-opacity-10 block rounded-2xl shadow-lg hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center"
           style={{
             backgroundImage: equippedUserItem?.item.imageUrl ? `url(${equippedUserItem.item.imageUrl})` : 'none',
             backgroundSize: 'contain',
@@ -83,7 +84,7 @@ export const PashuAvatar: React.FC<PashuAvatarProps> = ({ user, onSlotClick }) =
       <div 
         className="flex-1 flex items-center justify-between px-4 relative"
         style={{
-          backgroundImage: 'url(https://hkyyruzpfyqhsysxdcbp.functions.supabase.co/image-proxy/avatars/pasha-avatar.png)',
+          backgroundImage: `url(${pashaAvatar})`,
           backgroundSize: 'contain',
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat',

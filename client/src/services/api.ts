@@ -2,6 +2,15 @@ import { supabase, Tables } from '../lib/supabase';
 import { initData } from '@telegram-apps/sdk-react';
 import { User, Item, PaymentData, ItemType, ItemTier } from '../types';
 
+const CDN_BASE_URL = 'https://oden-pashu.sirv.com';
+
+const resolveImageUrl = (url: string | null): string | undefined => {
+  if (!url) return undefined;
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  if (url.startsWith('/')) return `${CDN_BASE_URL}${url}`;
+  return `${CDN_BASE_URL}/${url}`;
+};
+
 // Helper function to transform Supabase user to our User type
 const transformUser = (
   user: Tables<'users'>, 
@@ -30,7 +39,7 @@ const transformUser = (
         price: userItem.item.price,
         coolness: userItem.item.coolness || 0,
         weared: userItem.item.weared || 0,
-        imageUrl: userItem.item.image_url || undefined,
+        imageUrl: resolveImageUrl(userItem.item.image_url),
         createdAt: new Date(userItem.item.created_at),
       }
   })),
@@ -48,7 +57,7 @@ const transformItem = (item: Tables<'items'>): Item => ({
   price: item.price,
   coolness: item.coolness || 0,
   weared: item.weared || 0,
-  imageUrl: item.image_url || undefined,
+  imageUrl: resolveImageUrl(item.image_url),
   createdAt: new Date(item.created_at),
 });
 

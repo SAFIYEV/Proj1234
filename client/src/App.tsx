@@ -21,6 +21,8 @@ function App() {
       console.log('mountSync');
       try {
         miniApp.mountSync();
+        // Some SDK builds do not expose expand on miniApp object.
+        (window as any)?.Telegram?.WebApp?.expand?.();
         miniApp.setHeaderColor('#1a1a1a');
         miniApp.setBackgroundColor('#1a1a1a');
         initData.restore();
@@ -150,7 +152,7 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen h-full bg-dark text-white">
+    <div className="min-h-[100dvh] h-[100dvh] bg-dark text-white">
       <Toaster 
         position="top-center"
         toastOptions={{
@@ -162,14 +164,14 @@ function App() {
       />
 
       {/* Основной контент */}
-      <div className="h-screen bg-dark text-white flex flex-col">
+      <div className="h-[100dvh] bg-dark text-white flex flex-col overflow-hidden">
         {/* Аватар Паши - занимает всё свободное место */}
         <div className="flex-1 w-full h-full">
           <PashuAvatar user={user} onSlotClick={handleSlotClick} />
         </div>
 
         {/* Блоки одетости и крутости - внизу */}
-        <div className="p-4 space-y-4">
+        <div className="p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] space-y-4">
           <div className="flex justify-around text-sm">
             <div className="flex items-start gap-3">
               <span className="text-3xl">👔</span>
