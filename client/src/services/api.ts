@@ -216,6 +216,27 @@ export const paymentsApi = {
     return data;
   },
 
+  createStarsTopupInvoice: async (
+    userId: string,
+    telegramId: string,
+    userName: string,
+    amount: number
+  ): Promise<{ invoice_url: string; payload: string; amount: number }> => {
+    const starsAmount = Math.max(1, Math.floor(Number(amount) || 0));
+
+    const { data, error } = await supabase.functions.invoke('create-stars-topup', {
+      body: {
+        user_id: userId,
+        telegram_id: telegramId,
+        user_name: userName,
+        amount: starsAmount,
+      },
+    });
+
+    if (error) throw error;
+    return data;
+  },
+
   // Записать покупку после подтверждения Telegram
   recordPurchase: async (userId: string, itemId: string, payload: string, totalAmount: number = 0): Promise<void> => {
     // Сначала проверяем, есть ли уже этот айтем

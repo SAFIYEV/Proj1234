@@ -45,8 +45,9 @@ serve(async (req) => {
                 const payload: string = preCheckoutQuery.invoice_payload || ''
                 let itemId: string | null = null
                 let userUuid: string | null = null
+                const isTopupPayload = payload.startsWith('odenpashu_topup_')
 
-                if (payload.startsWith('odenpashu_')) {
+                if (!isTopupPayload && payload.startsWith('odenpashu_')) {
                     const parts = payload.split('_')
                     if (parts.length >= 4) {
                     userUuid = parts[1]
@@ -122,6 +123,104 @@ serve(async (req) => {
       return new Response(JSON.stringify({ status: 'pre_checkout_confirmed' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
+    }
+
+    // successful_payment: начисление пополнения баланса в звёздах
+    if (update.message?.successful_payment) {
+      const message = update.message
+      const payment = message.successful_payment
+      const payload: string = payment.invoice_payload || ''
+
+      if (payload.startsWith('odenpashu_topup_')) {
+        const parts = payload.split('_')
+        const userUuid = parts.length >= 4 ? parts[2] : null
+        const amountFromPayload = parts.length >= 4 ? Number.parseInt(parts[3], 10) : 0
+
+        if (!userUuid) {
+          throw new Error('Topup payload parse failed')
+        }
+
+        const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+        const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+        const supabase = createClient(supabaseUrl, supabaseKey)
+
+        const telegramChargeId = payment.telegram_payment_charge_id || payload
+
+        const { data: existingPayment } = await supabase
+          .from('payments')
+          .select('id')
+          .eq('telegram_payment_charge_id', telegramChargeId)
+          .maybeSingle()
+
+        if (existingPayment) {
+          return new Response(JSON.stringify({ status: 'topup_already_processed' }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+
+        const creditedStars = Math.max(
+          1,
+          Number.parseInt(String(payment.total_amount ?? amountFromPayload), 10) || amountFromPayload || 0
+        )
+
+        const { error: paymentErr } = await supabase
+          .from('payments')
+          .insert({
+            user_id: userUuid,
+            telegram_payment_charge_id: telegramChargeId,
+            provider_payment_charge_id: payment.provider_payment_charge_id || null,
+            total_amount: creditedStars,
+            currency: payment.currency || 'XTR',
+            item_id: null,
+            status: 'paid',
+            payload,
+            telegram_id: String(message.from?.id || ''),
+          })
+
+        if (paymentErr) {
+          throw new Error(`Topup payment insert failed: ${paymentErr.message}`)
+        }
+
+        const { error: starsErr } = await supabase.rpc('increment_user_stars', {
+          p_user_id: userUuid,
+          p_stars_delta: creditedStars,
+        })
+
+        if (starsErr) {
+          // Fallback for projects without increment_user_stars function
+          const { data: currentUser, error: currentErr } = await supabase
+            .from('users')
+            .select('stars')
+            .eq('id', userUuid)
+            .single()
+
+          if (currentErr || !currentUser) {
+            throw new Error(`Topup user fetch failed: ${currentErr?.message || 'user not found'}`)
+          }
+
+          const { error: updateErr } = await supabase
+            .from('users')
+            .update({ stars: (currentUser.stars || 0) + creditedStars })
+            .eq('id', userUuid)
+
+          if (updateErr) {
+            throw new Error(`Topup stars update failed: ${updateErr.message}`)
+          }
+        }
+
+        await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: message.chat.id,
+            text: `Баланс пополнен на +${creditedStars} ⭐`,
+          })
+        })
+
+        return new Response(JSON.stringify({ status: 'topup_processed', stars_added: creditedStars }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
     }
 
 

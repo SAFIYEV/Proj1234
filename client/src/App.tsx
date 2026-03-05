@@ -7,7 +7,7 @@ import { useUserStore } from './stores/useUserStore';
 import { init, miniApp, hapticFeedback, initData } from '@telegram-apps/sdk-react';
 import { SLOT_POSITIONS } from './utils/constants';
 import { toPng } from 'html-to-image';
-import { starsTransferApi, workApi, WorkCardModel, UserWorkModel } from './services/api';
+import { paymentsApi, starsTransferApi, workApi, WorkCardModel, UserWorkModel } from './services/api';
 
 function App() {
   const [isReady, setIsReady] = useState(false);
@@ -40,6 +40,9 @@ function App() {
   const { user, loading, error, fetchUser, createUser } = useUserStore();
   const [shopOpen, setShopOpen] = useState(false);
   const [earnOpen, setEarnOpen] = useState(false);
+  const [topupOpen, setTopupOpen] = useState(false);
+  const [topupAmount, setTopupAmount] = useState('');
+  const [topupLoading, setTopupLoading] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
   const [recipientTelegramId, setRecipientTelegramId] = useState('');
   const [transferAmount, setTransferAmount] = useState('');
@@ -279,6 +282,52 @@ function App() {
     }
   };
 
+  const handleTopupStars = async () => {
+    if (!user) return;
+    if (topupLoading) return;
+
+    const amount = Math.floor(Number(topupAmount));
+    if (!Number.isFinite(amount) || amount <= 0) {
+      toast.error('Введите корректную сумму пополнения');
+      return;
+    }
+
+    setTopupLoading(true);
+    try {
+      const invoice = await paymentsApi.createStarsTopupInvoice(
+        user.id,
+        user.telegramId,
+        user.username || user.firstName || 'user',
+        amount
+      );
+
+      const webApp = (window as any)?.Telegram?.WebApp;
+      if (!webApp?.openInvoice) {
+        throw new Error('Telegram WebApp openInvoice недоступен');
+      }
+
+      const status = await new Promise<string>((resolve) => {
+        webApp.openInvoice(invoice.invoice_url, (st: string) => resolve(st || 'unknown'));
+      });
+
+      if (status !== 'paid') {
+        if (status === 'cancelled') {
+          throw new Error('Оплата отменена');
+        }
+        throw new Error(`Оплата не завершена (${status})`);
+      }
+
+      toast.success(`Оплата на ${amount} ⭐ принята. Обновляем баланс...`);
+      await fetchUser(user.telegramId);
+      setTopupOpen(false);
+      setTopupAmount('');
+    } catch (e: any) {
+      toast.error(e.message || 'Не удалось пополнить баланс');
+    } finally {
+      setTopupLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-[100dvh] h-[100dvh] bg-dark text-white">
       <Toaster 
@@ -299,6 +348,12 @@ function App() {
             <div className="text-slate-300">Баланс: <span className="text-yellow-300 font-semibold">{user.stars} ⭐</span></div>
           </div>
           <div className="flex flex-col gap-2">
+            <button
+              onClick={() => setTopupOpen(true)}
+              className="bg-cyan-400 hover:bg-cyan-300 text-black font-bold px-4 py-2 rounded-xl text-sm leading-none"
+            >
+              Пополнить ⭐
+            </button>
             <button
               onClick={() => setEarnOpen(true)}
               className="bg-emerald-500 hover:bg-emerald-400 text-black font-bold px-5 py-2.5 rounded-xl text-lg leading-none"
@@ -515,6 +570,40 @@ function App() {
                 className="w-full bg-yellow-400 hover:bg-yellow-300 disabled:bg-slate-600 disabled:text-slate-300 text-black font-bold py-3 rounded-lg"
               >
                 {transferLoading ? 'Отправляем...' : 'Отправить звезды'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {topupOpen && (
+        <div className="fixed inset-0 z-[80] bg-black/80 backdrop-blur-sm flex items-end">
+          <div className="w-full bg-slate-900 rounded-t-2xl p-4 max-h-[60vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold">Пополнить баланс ⭐</h3>
+              <button onClick={() => setTopupOpen(false)} className="text-xl">✕</button>
+            </div>
+
+            <p className="text-sm text-slate-300 mb-3">
+              Введите сумму, и Telegram откроет оплату Stars.
+            </p>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm text-slate-300 mb-1">Сумма пополнения ⭐</label>
+                <input
+                  value={topupAmount}
+                  onChange={(event) => setTopupAmount(event.target.value.replace(/[^\d]/g, ''))}
+                  inputMode="numeric"
+                  placeholder="Например: 100"
+                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-cyan-400"
+                />
+              </div>
+              <button
+                onClick={handleTopupStars}
+                disabled={topupLoading || !topupAmount}
+                className="w-full bg-cyan-400 hover:bg-cyan-300 disabled:bg-slate-600 disabled:text-slate-300 text-black font-bold py-3 rounded-lg"
+              >
+                {topupLoading ? 'Создаём инвойс...' : 'Оплатить через Telegram Stars'}
               </button>
             </div>
           </div>
