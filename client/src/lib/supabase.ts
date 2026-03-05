@@ -161,6 +161,70 @@ export interface Database {
           payload?: string | null
         }
       }
+      work_cards: {
+        Row: {
+          id: string
+          code: string
+          title: string
+          description: string
+          unlock_price: number
+          profit_per_hour: number
+          image_url: string | null
+          sort_order: number
+          is_active: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          code: string
+          title: string
+          description: string
+          unlock_price: number
+          profit_per_hour: number
+          image_url?: string | null
+          sort_order?: number
+          is_active?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          code?: string
+          title?: string
+          description?: string
+          unlock_price?: number
+          profit_per_hour?: number
+          image_url?: string | null
+          sort_order?: number
+          is_active?: boolean
+          created_at?: string
+        }
+      }
+      user_work_cards: {
+        Row: {
+          id: string
+          user_id: string
+          work_card_id: string
+          purchased_at: string
+          last_claim_at: string
+          total_earned: number
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          work_card_id: string
+          purchased_at?: string
+          last_claim_at?: string
+          total_earned?: number
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          work_card_id?: string
+          purchased_at?: string
+          last_claim_at?: string
+          total_earned?: number
+        }
+      }
     }
     Views: {
       [_ in never]: never

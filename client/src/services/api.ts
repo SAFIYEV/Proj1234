@@ -2,6 +2,24 @@ import { supabase, Tables } from '../lib/supabase';
 import { initData } from '@telegram-apps/sdk-react';
 import { User, Item, PaymentData, ItemType, ItemTier } from '../types';
 
+export type WorkCardModel = {
+  id: string;
+  code: string;
+  title: string;
+  description: string;
+  unlockPrice: number;
+  profitPerHour: number;
+  imageUrl?: string;
+};
+
+export type UserWorkModel = {
+  id: string;
+  workCardId: string;
+  purchasedAt: number;
+  lastClaimAt: number;
+  totalEarned: number;
+};
+
 const resolveImageUrl = (url: string | null): string | undefined => {
   if (!url) return undefined;
   if (url.startsWith('http://') || url.startsWith('https://')) return url;
@@ -537,5 +555,146 @@ export const economyApi = {
       .eq('id', userId);
 
     if (error) throw error;
+  },
+};
+
+export const workApi = {
+  getWorkCards: async (): Promise<WorkCardModel[]> => {
+    const { data, error } = await supabase
+      .from('work_cards')
+      .select('*')
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true });
+
+    if (error) throw error;
+
+    return (data || []).map((card) => ({
+      id: card.id,
+      code: card.code,
+      title: card.title,
+      description: card.description,
+      unlockPrice: card.unlock_price,
+      profitPerHour: card.profit_per_hour,
+      imageUrl: resolveImageUrl(card.image_url),
+    }));
+  },
+
+  getUserWorks: async (telegramId: string): Promise<UserWorkModel[]> => {
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('telegram_id', telegramId)
+      .single();
+
+    if (userError || !user) throw new Error('Пользователь не найден');
+
+    const { data, error } = await supabase
+      .from('user_work_cards')
+      .select('id, work_card_id, purchased_at, last_claim_at, total_earned')
+      .eq('user_id', user.id);
+
+    if (error) throw error;
+
+    return (data || []).map((entry) => ({
+      id: entry.id,
+      workCardId: entry.work_card_id,
+      purchasedAt: new Date(entry.purchased_at).getTime(),
+      lastClaimAt: new Date(entry.last_claim_at).getTime(),
+      totalEarned: entry.total_earned || 0,
+    }));
+  },
+
+  purchaseWork: async (workCardId: string): Promise<void> => {
+    const telegramUser = initData.user();
+    const telegramId = telegramUser?.id?.toString() || '';
+    if (!telegramId) throw new Error('Не удалось определить Telegram ID');
+
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('id, stars')
+      .eq('telegram_id', telegramId)
+      .single();
+    if (userError || !user) throw new Error('Пользователь не найден');
+
+    const { data: card, error: cardError } = await supabase
+      .from('work_cards')
+      .select('id, unlock_price, is_active')
+      .eq('id', workCardId)
+      .maybeSingle();
+    if (cardError || !card || !card.is_active) throw new Error('Работа не найдена');
+
+    const { data: existing } = await supabase
+      .from('user_work_cards')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('work_card_id', card.id)
+      .maybeSingle();
+    if (existing) throw new Error('Эта работа уже куплена');
+
+    if ((user.stars || 0) < card.unlock_price) {
+      throw new Error(`Недостаточно звёзд. Нужно ${card.unlock_price} ⭐`);
+    }
+
+    const { error: insertError } = await supabase
+      .from('user_work_cards')
+      .insert({ user_id: user.id, work_card_id: card.id });
+    if (insertError) throw insertError;
+
+    const { error: updateStarsError } = await supabase
+      .from('users')
+      .update({ stars: (user.stars || 0) - card.unlock_price })
+      .eq('id', user.id);
+    if (updateStarsError) throw updateStarsError;
+  },
+
+  claimIncome: async (workCardId: string): Promise<number> => {
+    const telegramUser = initData.user();
+    const telegramId = telegramUser?.id?.toString() || '';
+    if (!telegramId) throw new Error('Не удалось определить Telegram ID');
+
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('id, stars')
+      .eq('telegram_id', telegramId)
+      .single();
+    if (userError || !user) throw new Error('Пользователь не найден');
+
+    const { data: card, error: cardError } = await supabase
+      .from('work_cards')
+      .select('id, profit_per_hour, is_active')
+      .eq('id', workCardId)
+      .maybeSingle();
+    if (cardError || !card || !card.is_active) throw new Error('Работа не найдена');
+
+    const { data: userWork, error: userWorkError } = await supabase
+      .from('user_work_cards')
+      .select('id, last_claim_at, total_earned')
+      .eq('user_id', user.id)
+      .eq('work_card_id', card.id)
+      .maybeSingle();
+    if (userWorkError || !userWork) throw new Error('Работа не куплена');
+
+    const now = Date.now();
+    const lastClaim = new Date(userWork.last_claim_at).getTime();
+    const elapsedHours = Math.max(0, (now - lastClaim) / 3600000);
+    const earned = Math.floor(elapsedHours * card.profit_per_hour);
+    if (earned <= 0) throw new Error('Пока не накопилось звёзд');
+
+    const { error: updateWorkError } = await supabase
+      .from('user_work_cards')
+      .update({
+        last_claim_at: new Date(now).toISOString(),
+        total_earned: (userWork.total_earned || 0) + earned,
+      })
+      .eq('id', userWork.id);
+    if (updateWorkError) throw updateWorkError;
+
+    const { error: updateStarsError } = await supabase
+      .from('users')
+      .update({ stars: (user.stars || 0) + earned })
+      .eq('id', user.id);
+    if (updateStarsError) throw updateStarsError;
+
+    return earned;
   },
 };

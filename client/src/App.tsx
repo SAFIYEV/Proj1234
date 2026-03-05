@@ -7,7 +7,7 @@ import { useUserStore } from './stores/useUserStore';
 import { init, miniApp, hapticFeedback, initData, openTelegramLink } from '@telegram-apps/sdk-react';
 import { SLOT_POSITIONS } from './utils/constants';
 import { toPng } from 'html-to-image';
-import { claimChannelReward, economyApi } from './services/api';
+import { claimChannelReward, workApi, WorkCardModel, UserWorkModel } from './services/api';
 
 type EarnTab = 'social' | 'jobs';
 
@@ -17,22 +17,6 @@ type SocialTask = {
   channelUrl: string;
   rewardStars: number;
   iconPath?: string;
-};
-
-type WorkCard = {
-  id: string;
-  title: string;
-  description: string;
-  unlockPrice: number;
-  profitPerHour: number;
-  imagePath?: string;
-};
-
-type OwnedWork = {
-  workId: string;
-  purchasedAt: number;
-  lastClaimAt: number;
-  totalEarned: number;
 };
 
 const SOCIAL_TASKS: SocialTask[] = [
@@ -59,47 +43,10 @@ const SOCIAL_TASKS: SocialTask[] = [
   },
 ];
 
-const WORK_CARDS: WorkCard[] = [
-  {
-    id: 'memes_factory',
-    title: 'Мемы Factory',
-    description: 'Делаешь мемы в Telegram-сетке',
-    unlockPrice: 150,
-    profitPerHour: 20,
-    imagePath: '/works/card1.png',
-  },
-  {
-    id: 'copywriter_ai',
-    title: 'AI Copywriter',
-    description: 'Пишешь посты и прогреваешь трафик',
-    unlockPrice: 500,
-    profitPerHour: 75,
-    imagePath: '/works/card2.png',
-  },
-  {
-    id: 'traffic_farmer',
-    title: 'Traffic Farmer',
-    description: 'Льешь подписчиков в Telegram-каналы',
-    unlockPrice: 1200,
-    profitPerHour: 180,
-    imagePath: '/works/card3.png',
-  },
-  {
-    id: 'crypto_trader',
-    title: 'Crypto Trader',
-    description: 'Арбитраж и сделки на новостях',
-    unlockPrice: 3000,
-    profitPerHour: 480,
-    imagePath: '/works/card4.png',
-  },
-];
-
 const getAssetUrl = (path?: string) => {
   if (!path) return undefined;
   return `${import.meta.env.BASE_URL}${path.replace(/^\//, '')}`;
 };
-
-const getWorkStorageKey = (telegramId: string) => `pashu_work_cards_${telegramId}`;
 
 function App() {
   const [isReady, setIsReady] = useState(false);
@@ -136,7 +83,9 @@ function App() {
   const [nowTs, setNowTs] = useState(Date.now());
   const [claimingChannel, setClaimingChannel] = useState<string | null>(null);
   const [processingWorkId, setProcessingWorkId] = useState<string | null>(null);
-  const [ownedWorks, setOwnedWorks] = useState<OwnedWork[]>([]);
+  const [workCards, setWorkCards] = useState<WorkCardModel[]>([]);
+  const [ownedWorks, setOwnedWorks] = useState<UserWorkModel[]>([]);
+  const [jobsLoading, setJobsLoading] = useState(false);
   const [selectedItemType, setSelectedItemType] = useState<ItemType | null>(null);
   const captureRef = useRef<HTMLDivElement>(null);
 
@@ -158,25 +107,24 @@ function App() {
 
   useEffect(() => {
     if (!user?.telegramId) return;
-    const key = getWorkStorageKey(user.telegramId);
-    try {
-      const raw = localStorage.getItem(key);
-      if (!raw) {
-        setOwnedWorks([]);
-        return;
+    const loadJobs = async () => {
+      setJobsLoading(true);
+      try {
+        const [cards, userWorks] = await Promise.all([
+          workApi.getWorkCards(),
+          workApi.getUserWorks(user.telegramId),
+        ]);
+        setWorkCards(cards);
+        setOwnedWorks(userWorks);
+      } catch (e: any) {
+        toast.error(e.message || 'Не удалось загрузить раздел работ');
+      } finally {
+        setJobsLoading(false);
       }
-      const parsed = JSON.parse(raw) as OwnedWork[];
-      setOwnedWorks(Array.isArray(parsed) ? parsed : []);
-    } catch {
-      setOwnedWorks([]);
-    }
-  }, [user?.telegramId]);
+    };
 
-  useEffect(() => {
-    if (!user?.telegramId) return;
-    const key = getWorkStorageKey(user.telegramId);
-    localStorage.setItem(key, JSON.stringify(ownedWorks));
-  }, [ownedWorks, user?.telegramId]);
+    loadJobs();
+  }, [user?.telegramId]);
 
   const handleSlotClick = (type: ItemType) => {
     hapticFeedback.impactOccurred('medium');
@@ -310,16 +258,16 @@ function App() {
     }
   };
 
-  const getOwnedWork = (workId: string) => ownedWorks.find(work => work.workId === workId);
+  const getOwnedWork = (workCardId: string) => ownedWorks.find(work => work.workCardId === workCardId);
 
-  const getPendingWorkIncome = (workId: string, profitPerHour: number) => {
-    const owned = getOwnedWork(workId);
+  const getPendingWorkIncome = (workCardId: string, profitPerHour: number) => {
+    const owned = getOwnedWork(workCardId);
     if (!owned) return 0;
     const diffMs = Math.max(0, nowTs - owned.lastClaimAt);
     return Math.floor((diffMs / 3600000) * profitPerHour);
   };
 
-  const handleBuyWork = async (work: WorkCard) => {
+  const handleBuyWork = async (work: WorkCardModel) => {
     if (!user) return;
     if (getOwnedWork(work.id)) {
       toast('Эта работа уже куплена');
@@ -332,12 +280,9 @@ function App() {
 
     setProcessingWorkId(work.id);
     try {
-      await economyApi.updateStarsByUserId(user.id, user.stars - work.unlockPrice);
-      const now = Date.now();
-      setOwnedWorks(prev => [
-        ...prev,
-        { workId: work.id, purchasedAt: now, lastClaimAt: now, totalEarned: 0 },
-      ]);
+      await workApi.purchaseWork(work.id);
+      const userWorks = await workApi.getUserWorks(user.telegramId);
+      setOwnedWorks(userWorks);
       await fetchUser(user.telegramId);
       toast.success(`Работа "${work.title}" разблокирована`);
     } catch (e: any) {
@@ -347,28 +292,15 @@ function App() {
     }
   };
 
-  const handleClaimWorkIncome = async (work: WorkCard) => {
+  const handleClaimWorkIncome = async (work: WorkCardModel) => {
     if (!user) return;
-    const owned = getOwnedWork(work.id);
-    if (!owned) return;
-
-    const earned = getPendingWorkIncome(work.id, work.profitPerHour);
-    if (earned <= 0) {
-      toast('Пока не накопилось звёзд');
-      return;
-    }
+    if (!getOwnedWork(work.id)) return;
 
     setProcessingWorkId(work.id);
     try {
-      await economyApi.updateStarsByUserId(user.id, user.stars + earned);
-      const now = Date.now();
-      setOwnedWorks(prev =>
-        prev.map(item =>
-          item.workId === work.id
-            ? { ...item, lastClaimAt: now, totalEarned: item.totalEarned + earned }
-            : item
-        )
-      );
+      const earned = await workApi.claimIncome(work.id);
+      const userWorks = await workApi.getUserWorks(user.telegramId);
+      setOwnedWorks(userWorks);
       await fetchUser(user.telegramId);
       toast.success(`+${earned} ⭐ начислено`);
     } catch (e: any) {
@@ -568,17 +500,20 @@ function App() {
                 <p className="text-sm text-slate-300 mb-4">
                   Разблокируй работу за звезды и собирай прибыль в час, как в Hamster-механике.
                 </p>
+                {jobsLoading && (
+                  <div className="text-sm text-slate-300 mb-3">Загрузка работ...</div>
+                )}
                 <div className="grid grid-cols-2 gap-3">
-                  {WORK_CARDS.map((work) => {
+                  {workCards.map((work) => {
                     const owned = getOwnedWork(work.id);
                     const pendingIncome = getPendingWorkIncome(work.id, work.profitPerHour);
 
                     return (
                       <div key={work.id} className="rounded-xl bg-slate-800 p-3 border border-slate-700">
                         <div className="w-full h-20 rounded-lg overflow-hidden bg-slate-700 mb-2 flex items-center justify-center">
-                          {work.imagePath ? (
+                          {work.imageUrl ? (
                             <img
-                              src={getAssetUrl(work.imagePath)}
+                              src={work.imageUrl}
                               alt={work.title}
                               className="w-full h-full object-cover"
                               onError={(event) => {
@@ -614,6 +549,9 @@ function App() {
                     );
                   })}
                 </div>
+                {!jobsLoading && workCards.length === 0 && (
+                  <div className="text-sm text-slate-400 mt-2">Работы пока не настроены в базе.</div>
+                )}
                 <p className="text-xs text-slate-400 mt-3">
                   Изображения работ можно класть в `client/public/works/`, а иконки каналов - в `client/public/social/`.
                 </p>
