@@ -45,8 +45,8 @@ export const PashuAvatar: React.FC<PashuAvatarProps> = ({ user, onSlotClick, cap
           onClick={() => handleSlotClick(slot.id)}
           className="border-2 bg-white bg-opacity-10 block rounded-2xl shadow-lg hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center"
           style={{
-            width: 'clamp(48px, 11vw, 72px)',
-            height: 'clamp(48px, 11vw, 72px)',
+            width: 'clamp(56px, 13vw, 84px)',
+            height: 'clamp(56px, 13vw, 84px)',
           }}
           
           title={slot.name}
@@ -64,7 +64,7 @@ export const PashuAvatar: React.FC<PashuAvatarProps> = ({ user, onSlotClick, cap
           )}
         </button>
         
-        <div className="mt-1 text-[10px] sm:text-xs text-white font-light bg-black bg-opacity-50 px-2 py-1 rounded-lg whitespace-nowrap" style={{ fontFamily: 'Montserrat, sans-serif' }}>
+        <div className="mt-1 text-[11px] sm:text-xs text-white font-light bg-black bg-opacity-50 px-2 py-1 rounded-lg whitespace-nowrap" style={{ fontFamily: 'Montserrat, sans-serif' }}>
           {slot.name}
         </div>
       </div>
@@ -85,7 +85,7 @@ export const PashuAvatar: React.FC<PashuAvatarProps> = ({ user, onSlotClick, cap
       {/* Основная область с фоном Паши и боковыми слотами */}
       <div 
         ref={captureRef}
-        className="flex-1 min-h-0 flex items-center justify-between px-2 sm:px-4 relative"
+        className="flex-1 min-h-0 flex items-start justify-between px-2 sm:px-4 pt-8 sm:pt-10 relative"
         style={{
           backgroundImage: `url(${pashaAvatar})`,
           backgroundSize: 'contain',
@@ -94,7 +94,7 @@ export const PashuAvatar: React.FC<PashuAvatarProps> = ({ user, onSlotClick, cap
         }}
       >
         {/* Левая колонка */}
-        <div className="flex flex-col gap-2 sm:gap-3 z-10">
+        <div className="flex flex-col gap-3 sm:gap-4 z-10 mt-4 sm:mt-6">
           {leftSlots.map(renderSlot)}
         </div>
         
@@ -102,7 +102,7 @@ export const PashuAvatar: React.FC<PashuAvatarProps> = ({ user, onSlotClick, cap
         <div className="flex-1" />
         
         {/* Правая колонка */}
-        <div className="flex flex-col gap-2 sm:gap-3 z-10">
+        <div className="flex flex-col gap-3 sm:gap-4 z-10 mt-4 sm:mt-6">
           {rightSlots.map(renderSlot)}
         </div>
       </div>

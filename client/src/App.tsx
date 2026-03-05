@@ -7,13 +7,99 @@ import { useUserStore } from './stores/useUserStore';
 import { init, miniApp, hapticFeedback, initData, openTelegramLink } from '@telegram-apps/sdk-react';
 import { SLOT_POSITIONS } from './utils/constants';
 import { toPng } from 'html-to-image';
-import { claimChannelReward } from './services/api';
+import { claimChannelReward, economyApi } from './services/api';
 
-const EARN_CHANNELS = [
-  'https://t.me/web3frensCA',
-  'https://t.me/minudefi',
-  'https://t.me/AILumiere_news',
+type EarnTab = 'social' | 'jobs';
+
+type SocialTask = {
+  id: string;
+  title: string;
+  channelUrl: string;
+  rewardStars: number;
+  iconPath?: string;
+};
+
+type WorkCard = {
+  id: string;
+  title: string;
+  description: string;
+  unlockPrice: number;
+  profitPerHour: number;
+  imagePath?: string;
+};
+
+type OwnedWork = {
+  workId: string;
+  purchasedAt: number;
+  lastClaimAt: number;
+  totalEarned: number;
+};
+
+const SOCIAL_TASKS: SocialTask[] = [
+  {
+    id: 'minudefi',
+    title: 'Подписка на minudefi',
+    channelUrl: 'https://t.me/minudefi',
+    rewardStars: 5,
+    iconPath: '/social/minudefi.png',
+  },
+  {
+    id: 'web3frens',
+    title: 'Подписка на web3frensCA',
+    channelUrl: 'https://t.me/web3frensCA',
+    rewardStars: 5,
+    iconPath: '/social/web3frenca.png',
+  },
+  {
+    id: 'ailumiere',
+    title: 'Подписка на AILumiere News',
+    channelUrl: 'https://t.me/AILumiere_news',
+    rewardStars: 5,
+    iconPath: '/social/ailumiere_news.png',
+  },
 ];
+
+const WORK_CARDS: WorkCard[] = [
+  {
+    id: 'memes_factory',
+    title: 'Мемы Factory',
+    description: 'Делаешь мемы в Telegram-сетке',
+    unlockPrice: 150,
+    profitPerHour: 20,
+    imagePath: '/works/card1.png',
+  },
+  {
+    id: 'copywriter_ai',
+    title: 'AI Copywriter',
+    description: 'Пишешь посты и прогреваешь трафик',
+    unlockPrice: 500,
+    profitPerHour: 75,
+    imagePath: '/works/card2.png',
+  },
+  {
+    id: 'traffic_farmer',
+    title: 'Traffic Farmer',
+    description: 'Льешь подписчиков в Telegram-каналы',
+    unlockPrice: 1200,
+    profitPerHour: 180,
+    imagePath: '/works/card3.png',
+  },
+  {
+    id: 'crypto_trader',
+    title: 'Crypto Trader',
+    description: 'Арбитраж и сделки на новостях',
+    unlockPrice: 3000,
+    profitPerHour: 480,
+    imagePath: '/works/card4.png',
+  },
+];
+
+const getAssetUrl = (path?: string) => {
+  if (!path) return undefined;
+  return `${import.meta.env.BASE_URL}${path.replace(/^\//, '')}`;
+};
+
+const getWorkStorageKey = (telegramId: string) => `pashu_work_cards_${telegramId}`;
 
 function App() {
   const [isReady, setIsReady] = useState(false);
@@ -46,7 +132,11 @@ function App() {
   const { user, loading, error, fetchUser, createUser } = useUserStore();
   const [shopOpen, setShopOpen] = useState(false);
   const [earnOpen, setEarnOpen] = useState(false);
+  const [earnTab, setEarnTab] = useState<EarnTab>('social');
+  const [nowTs, setNowTs] = useState(Date.now());
   const [claimingChannel, setClaimingChannel] = useState<string | null>(null);
+  const [processingWorkId, setProcessingWorkId] = useState<string | null>(null);
+  const [ownedWorks, setOwnedWorks] = useState<OwnedWork[]>([]);
   const [selectedItemType, setSelectedItemType] = useState<ItemType | null>(null);
   const captureRef = useRef<HTMLDivElement>(null);
 
@@ -59,6 +149,34 @@ function App() {
       });
     }
   }, [isReady, fetchUser, createUser, telegramId]);
+
+  useEffect(() => {
+    if (!earnOpen || earnTab !== 'jobs') return;
+    const id = window.setInterval(() => setNowTs(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [earnOpen, earnTab]);
+
+  useEffect(() => {
+    if (!user?.telegramId) return;
+    const key = getWorkStorageKey(user.telegramId);
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) {
+        setOwnedWorks([]);
+        return;
+      }
+      const parsed = JSON.parse(raw) as OwnedWork[];
+      setOwnedWorks(Array.isArray(parsed) ? parsed : []);
+    } catch {
+      setOwnedWorks([]);
+    }
+  }, [user?.telegramId]);
+
+  useEffect(() => {
+    if (!user?.telegramId) return;
+    const key = getWorkStorageKey(user.telegramId);
+    localStorage.setItem(key, JSON.stringify(ownedWorks));
+  }, [ownedWorks, user?.telegramId]);
 
   const handleSlotClick = (type: ItemType) => {
     hapticFeedback.impactOccurred('medium');
@@ -178,6 +296,7 @@ function App() {
 
   const handleClaimReward = async (channelUrl: string) => {
     if (!user) return;
+    if (claimingChannel) return;
     setClaimingChannel(channelUrl);
 
     try {
@@ -185,9 +304,77 @@ function App() {
       toast.success(result.message);
       await fetchUser(user.telegramId);
     } catch (e: any) {
-      toast.error(e.message || 'Не удалось получить награду');
+      toast.error(e.message || 'Не удалось получить награду', { id: 'claim-reward-error' });
     } finally {
       setClaimingChannel(null);
+    }
+  };
+
+  const getOwnedWork = (workId: string) => ownedWorks.find(work => work.workId === workId);
+
+  const getPendingWorkIncome = (workId: string, profitPerHour: number) => {
+    const owned = getOwnedWork(workId);
+    if (!owned) return 0;
+    const diffMs = Math.max(0, nowTs - owned.lastClaimAt);
+    return Math.floor((diffMs / 3600000) * profitPerHour);
+  };
+
+  const handleBuyWork = async (work: WorkCard) => {
+    if (!user) return;
+    if (getOwnedWork(work.id)) {
+      toast('Эта работа уже куплена');
+      return;
+    }
+    if (user.stars < work.unlockPrice) {
+      toast.error(`Недостаточно звёзд. Нужно ${work.unlockPrice} ⭐`);
+      return;
+    }
+
+    setProcessingWorkId(work.id);
+    try {
+      await economyApi.updateStarsByUserId(user.id, user.stars - work.unlockPrice);
+      const now = Date.now();
+      setOwnedWorks(prev => [
+        ...prev,
+        { workId: work.id, purchasedAt: now, lastClaimAt: now, totalEarned: 0 },
+      ]);
+      await fetchUser(user.telegramId);
+      toast.success(`Работа "${work.title}" разблокирована`);
+    } catch (e: any) {
+      toast.error(e.message || 'Не удалось купить работу');
+    } finally {
+      setProcessingWorkId(null);
+    }
+  };
+
+  const handleClaimWorkIncome = async (work: WorkCard) => {
+    if (!user) return;
+    const owned = getOwnedWork(work.id);
+    if (!owned) return;
+
+    const earned = getPendingWorkIncome(work.id, work.profitPerHour);
+    if (earned <= 0) {
+      toast('Пока не накопилось звёзд');
+      return;
+    }
+
+    setProcessingWorkId(work.id);
+    try {
+      await economyApi.updateStarsByUserId(user.id, user.stars + earned);
+      const now = Date.now();
+      setOwnedWorks(prev =>
+        prev.map(item =>
+          item.workId === work.id
+            ? { ...item, lastClaimAt: now, totalEarned: item.totalEarned + earned }
+            : item
+        )
+      );
+      await fetchUser(user.telegramId);
+      toast.success(`+${earned} ⭐ начислено`);
+    } catch (e: any) {
+      toast.error(e.message || 'Не удалось начислить доход');
+    } finally {
+      setProcessingWorkId(null);
     }
   };
 
@@ -205,14 +392,14 @@ function App() {
 
       {/* Основной контент */}
       <div className="h-[100dvh] bg-dark text-white flex flex-col overflow-hidden">
-        <div className="px-4 pt-[calc(0.5rem+env(safe-area-inset-top))] pb-2 flex items-center justify-between gap-3">
-          <div className="text-xs bg-slate-900/70 border border-slate-700 rounded-lg px-3 py-2">
+        <div className="px-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-3 flex items-center justify-between gap-3">
+          <div className="text-sm bg-slate-900/80 border border-slate-700 rounded-xl px-3 py-2.5 shadow-lg">
             <div className="text-slate-300">ID: <span className="text-cyan-300 font-semibold">{user.telegramId}</span></div>
             <div className="text-slate-300">Баланс: <span className="text-yellow-300 font-semibold">{user.stars} ⭐</span></div>
           </div>
           <button
             onClick={() => setEarnOpen(true)}
-            className="bg-emerald-500 hover:bg-emerald-400 text-black font-bold px-4 py-2 rounded-lg"
+            className="bg-emerald-500 hover:bg-emerald-400 text-black font-bold px-5 py-2.5 rounded-xl text-lg leading-none"
           >
             Заработать
           </button>
@@ -303,36 +490,138 @@ function App() {
 
       {earnOpen && (
         <div className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-end">
-          <div className="w-full bg-slate-900 rounded-t-2xl p-4 max-h-[75vh] overflow-y-auto">
+          <div className="w-full bg-slate-900 rounded-t-2xl p-4 max-h-[80vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold">Заработать ⭐</h3>
               <button onClick={() => setEarnOpen(false)} className="text-xl">✕</button>
             </div>
-            <p className="text-sm text-slate-300 mb-4">
-              Подпишись на канал и получи +5 ⭐. Награда один раз на канал.
-            </p>
+            <div className="mb-4 grid grid-cols-2 gap-2">
+              <button
+                onClick={() => setEarnTab('social')}
+                className={`rounded-lg py-2 font-semibold transition ${
+                  earnTab === 'social' ? 'bg-cyan-500 text-black' : 'bg-slate-800 text-slate-300'
+                }`}
+              >
+                Social tasks
+              </button>
+              <button
+                onClick={() => setEarnTab('jobs')}
+                className={`rounded-lg py-2 font-semibold transition ${
+                  earnTab === 'jobs' ? 'bg-cyan-500 text-black' : 'bg-slate-800 text-slate-300'
+                }`}
+              >
+                Работы
+              </button>
+            </div>
 
-            <div className="space-y-3">
-              {EARN_CHANNELS.map((channel) => (
-                <div key={channel} className="rounded-lg bg-slate-800 p-3">
-                  <div className="text-sm text-cyan-300 mb-2">{channel}</div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => openTelegramLink(channel)}
-                      className="flex-1 bg-blue-500 hover:bg-blue-400 text-white font-semibold py-2 rounded-lg"
-                    >
-                      Перейти
-                    </button>
-                    <button
-                      onClick={() => handleClaimReward(channel)}
-                      disabled={claimingChannel === channel}
-                      className="flex-1 bg-emerald-500 hover:bg-emerald-400 disabled:bg-slate-600 text-black font-semibold py-2 rounded-lg"
-                    >
-                      {claimingChannel === channel ? 'Проверяем...' : 'Получить +5 ⭐'}
-                    </button>
-                  </div>
+            {earnTab === 'social' && (
+              <div>
+                <p className="text-sm text-slate-300 mb-4">
+                  Подпишись на канал и получи награду. `minudefi` всегда вверху списка.
+                </p>
+                <div className="space-y-3">
+                  {SOCIAL_TASKS.map((task) => (
+                    <div key={task.id} className="rounded-xl bg-slate-800 p-3 border border-slate-700">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="w-10 h-10 rounded-lg overflow-hidden bg-slate-700 flex items-center justify-center text-sm font-bold text-cyan-300">
+                          {task.iconPath ? (
+                            <img
+                              src={getAssetUrl(task.iconPath)}
+                              alt={task.title}
+                              className="w-full h-full object-cover"
+                              onError={(event) => {
+                                event.currentTarget.style.display = 'none';
+                              }}
+                            />
+                          ) : (
+                            task.title.slice(0, 2).toUpperCase()
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-sm font-semibold text-white">{task.title}</div>
+                          <div className="text-xs text-cyan-300 truncate">{task.channelUrl}</div>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => openTelegramLink(task.channelUrl)}
+                          className="flex-1 bg-blue-500 hover:bg-blue-400 text-white font-semibold py-2 rounded-lg"
+                        >
+                          Перейти
+                        </button>
+                        <button
+                          onClick={() => handleClaimReward(task.channelUrl)}
+                          disabled={!!claimingChannel}
+                          className="flex-1 bg-emerald-500 hover:bg-emerald-400 disabled:bg-slate-600 text-black font-semibold py-2 rounded-lg"
+                        >
+                          {claimingChannel === task.channelUrl ? 'Проверяем...' : `Получить +${task.rewardStars} ⭐`}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              </div>
+            )}
+
+            {earnTab === 'jobs' && (
+              <div>
+                <p className="text-sm text-slate-300 mb-4">
+                  Разблокируй работу за звезды и собирай прибыль в час, как в Hamster-механике.
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  {WORK_CARDS.map((work) => {
+                    const owned = getOwnedWork(work.id);
+                    const pendingIncome = getPendingWorkIncome(work.id, work.profitPerHour);
+
+                    return (
+                      <div key={work.id} className="rounded-xl bg-slate-800 p-3 border border-slate-700">
+                        <div className="w-full h-20 rounded-lg overflow-hidden bg-slate-700 mb-2 flex items-center justify-center">
+                          {work.imagePath ? (
+                            <img
+                              src={getAssetUrl(work.imagePath)}
+                              alt={work.title}
+                              className="w-full h-full object-cover"
+                              onError={(event) => {
+                                event.currentTarget.style.display = 'none';
+                              }}
+                            />
+                          ) : (
+                            <span className="text-2xl">💼</span>
+                          )}
+                        </div>
+                        <div className="text-sm font-bold">{work.title}</div>
+                        <div className="text-[11px] text-slate-400">{work.description}</div>
+                        <div className="text-xs text-yellow-300 mt-2">Прибыль в час: +{work.profitPerHour} ⭐</div>
+                        <div className="text-xs text-slate-400 mt-1">
+                          {owned ? `lvl 1 · накоплено: ${pendingIncome} ⭐` : `Unlock: ${work.unlockPrice} ⭐`}
+                        </div>
+                        <button
+                          onClick={() => (owned ? handleClaimWorkIncome(work) : handleBuyWork(work))}
+                          disabled={processingWorkId === work.id}
+                          className={`w-full mt-2 py-2 rounded-lg font-semibold ${
+                            owned
+                              ? 'bg-emerald-500 hover:bg-emerald-400 text-black'
+                              : 'bg-cyan-500 hover:bg-cyan-400 text-black'
+                          } disabled:bg-slate-600 disabled:text-slate-300`}
+                        >
+                          {processingWorkId === work.id
+                            ? 'Обработка...'
+                            : owned
+                              ? `Забрать +${pendingIncome} ⭐`
+                              : `Купить за ${work.unlockPrice} ⭐`}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-slate-400 mt-3">
+                  Изображения работ можно класть в `client/public/works/`, а иконки каналов - в `client/public/social/`.
+                </p>
+              </div>
+            )}
+
+            <div className="mt-4 text-xs text-slate-400">
+              Если подписка подтверждается, но награда не выдается - добавь бота в админы канала и проверь деплой `claim-channel-reward`.
             </div>
           </div>
         </div>

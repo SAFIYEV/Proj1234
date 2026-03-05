@@ -507,11 +507,19 @@ export const claimChannelReward = async (channelUrl: string): Promise<{ message:
   });
 
   if (error) {
-    throw new Error(error.message || 'Не удалось получить награду');
+    const message = error.message || '';
+    if (message.includes('Failed to send a request to the Edge Function')) {
+      throw new Error('Сервер наград недоступен. Проверь, что Edge Function claim-channel-reward задеплоена в Supabase.');
+    }
+    throw new Error(message || 'Не удалось получить награду');
   }
 
   if (!data?.success) {
-    throw new Error(data?.error || data?.message || 'Не удалось получить награду');
+    const errorMessage = data?.error || data?.message || 'Не удалось получить награду';
+    if (String(errorMessage).includes('Add bot to channel admin list')) {
+      throw new Error('Бот не имеет доступа к каналу. Добавь бота в админы канала и повтори.');
+    }
+    throw new Error(errorMessage);
   }
 
   return {
@@ -519,4 +527,15 @@ export const claimChannelReward = async (channelUrl: string): Promise<{ message:
     stars_added: data.stars_added || 0,
     already_claimed: !!data.already_claimed,
   };
+};
+
+export const economyApi = {
+  updateStarsByUserId: async (userId: string, nextStars: number): Promise<void> => {
+    const { error } = await supabase
+      .from('users')
+      .update({ stars: nextStars })
+      .eq('id', userId);
+
+    if (error) throw error;
+  },
 };
