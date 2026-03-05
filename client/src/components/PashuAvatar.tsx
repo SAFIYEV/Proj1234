@@ -85,7 +85,7 @@ export const PashuAvatar: React.FC<PashuAvatarProps> = ({ user, onSlotClick, cap
       {/* Основная область с фоном Паши и боковыми слотами */}
       <div 
         ref={captureRef}
-        className="flex-1 min-h-0 flex items-start justify-between px-2 sm:px-4 pt-8 sm:pt-10 relative"
+        className="flex-1 min-h-0 flex items-start justify-between px-2 sm:px-4 pt-14 sm:pt-16 relative"
         style={{
           backgroundImage: `url(${pashaAvatar})`,
           backgroundSize: 'contain',
@@ -94,7 +94,7 @@ export const PashuAvatar: React.FC<PashuAvatarProps> = ({ user, onSlotClick, cap
         }}
       >
         {/* Левая колонка */}
-        <div className="flex flex-col gap-3 sm:gap-4 z-10 mt-4 sm:mt-6">
+        <div className="flex flex-col gap-3 sm:gap-4 z-10 mt-6 sm:mt-8">
           {leftSlots.map(renderSlot)}
         </div>
         
@@ -102,7 +102,7 @@ export const PashuAvatar: React.FC<PashuAvatarProps> = ({ user, onSlotClick, cap
         <div className="flex-1" />
         
         {/* Правая колонка */}
-        <div className="flex flex-col gap-3 sm:gap-4 z-10 mt-4 sm:mt-6">
+        <div className="flex flex-col gap-3 sm:gap-4 z-10 mt-6 sm:mt-8">
           {rightSlots.map(renderSlot)}
         </div>
       </div>

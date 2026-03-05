@@ -698,3 +698,42 @@ export const workApi = {
     return earned;
   },
 };
+
+export const starsTransferApi = {
+  transferByTelegramId: async (recipientTelegramId: string, amount: number, note?: string): Promise<{ sender_stars: number; recipient_stars: number }> => {
+    const telegramUser = initData.user();
+    const senderTelegramId = telegramUser?.id?.toString() || '';
+    if (!senderTelegramId) throw new Error('Не удалось определить ваш Telegram ID');
+
+    const cleanRecipient = String(recipientTelegramId || '').trim();
+    if (!cleanRecipient) throw new Error('Укажите Telegram ID получателя');
+    if (!/^\d+$/.test(cleanRecipient)) throw new Error('Telegram ID получателя должен содержать только цифры');
+
+    const starsAmount = Number(amount);
+    if (!Number.isFinite(starsAmount) || starsAmount <= 0) {
+      throw new Error('Сумма перевода должна быть больше 0');
+    }
+
+    const { data, error } = await supabase.rpc('transfer_stars', {
+      p_sender_telegram_id: senderTelegramId,
+      p_recipient_telegram_id: cleanRecipient,
+      p_amount: Math.floor(starsAmount),
+      p_note: note?.trim() || null,
+    });
+
+    if (error) {
+      const message = String(error.message || '');
+      if (message.includes('RECIPIENT_NOT_FOUND')) throw new Error('Получатель не найден');
+      if (message.includes('SENDER_NOT_FOUND')) throw new Error('Отправитель не найден');
+      if (message.includes('CANNOT_TRANSFER_TO_SELF')) throw new Error('Нельзя отправить звёзды самому себе');
+      if (message.includes('INSUFFICIENT_STARS')) throw new Error('Недостаточно звёзд для перевода');
+      if (message.includes('INVALID_TRANSFER_AMOUNT')) throw new Error('Некорректная сумма перевода');
+      throw new Error(error.message || 'Не удалось выполнить перевод');
+    }
+
+    return {
+      sender_stars: data?.sender_stars ?? 0,
+      recipient_stars: data?.recipient_stars ?? 0,
+    };
+  },
+};

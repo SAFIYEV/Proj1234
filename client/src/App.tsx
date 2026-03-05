@@ -4,49 +4,10 @@ import { PashuAvatar } from './components/PashuAvatar';
 import { ShopModal } from './components/ShopModal';
 import { ItemType } from './types';
 import { useUserStore } from './stores/useUserStore';
-import { init, miniApp, hapticFeedback, initData, openTelegramLink } from '@telegram-apps/sdk-react';
+import { init, miniApp, hapticFeedback, initData } from '@telegram-apps/sdk-react';
 import { SLOT_POSITIONS } from './utils/constants';
 import { toPng } from 'html-to-image';
-import { claimChannelReward, workApi, WorkCardModel, UserWorkModel } from './services/api';
-
-type EarnTab = 'social' | 'jobs';
-
-type SocialTask = {
-  id: string;
-  title: string;
-  channelUrl: string;
-  rewardStars: number;
-  iconPath?: string;
-};
-
-const SOCIAL_TASKS: SocialTask[] = [
-  {
-    id: 'minudefi',
-    title: 'Подписка на minudefi',
-    channelUrl: 'https://t.me/minudefi',
-    rewardStars: 5,
-    iconPath: '/social/minudefi.png',
-  },
-  {
-    id: 'web3frens',
-    title: 'Подписка на web3frensCA',
-    channelUrl: 'https://t.me/web3frensCA',
-    rewardStars: 5,
-    iconPath: '/social/web3frenca.png',
-  },
-  {
-    id: 'ailumiere',
-    title: 'Подписка на AILumiere News',
-    channelUrl: 'https://t.me/AILumiere_news',
-    rewardStars: 5,
-    iconPath: '/social/ailumiere_news.png',
-  },
-];
-
-const getAssetUrl = (path?: string) => {
-  if (!path) return undefined;
-  return `${import.meta.env.BASE_URL}${path.replace(/^\//, '')}`;
-};
+import { starsTransferApi, workApi, WorkCardModel, UserWorkModel } from './services/api';
 
 function App() {
   const [isReady, setIsReady] = useState(false);
@@ -79,9 +40,12 @@ function App() {
   const { user, loading, error, fetchUser, createUser } = useUserStore();
   const [shopOpen, setShopOpen] = useState(false);
   const [earnOpen, setEarnOpen] = useState(false);
-  const [earnTab, setEarnTab] = useState<EarnTab>('social');
+  const [transferOpen, setTransferOpen] = useState(false);
+  const [recipientTelegramId, setRecipientTelegramId] = useState('');
+  const [transferAmount, setTransferAmount] = useState('');
+  const [transferNote, setTransferNote] = useState('');
+  const [transferLoading, setTransferLoading] = useState(false);
   const [nowTs, setNowTs] = useState(Date.now());
-  const [claimingChannel, setClaimingChannel] = useState<string | null>(null);
   const [processingWorkId, setProcessingWorkId] = useState<string | null>(null);
   const [workCards, setWorkCards] = useState<WorkCardModel[]>([]);
   const [ownedWorks, setOwnedWorks] = useState<UserWorkModel[]>([]);
@@ -100,10 +64,10 @@ function App() {
   }, [isReady, fetchUser, createUser, telegramId]);
 
   useEffect(() => {
-    if (!earnOpen || earnTab !== 'jobs') return;
+    if (!earnOpen) return;
     const id = window.setInterval(() => setNowTs(Date.now()), 1000);
     return () => window.clearInterval(id);
-  }, [earnOpen, earnTab]);
+  }, [earnOpen]);
 
   useEffect(() => {
     if (!user?.telegramId) return;
@@ -242,22 +206,6 @@ function App() {
     }
   };
 
-  const handleClaimReward = async (channelUrl: string) => {
-    if (!user) return;
-    if (claimingChannel) return;
-    setClaimingChannel(channelUrl);
-
-    try {
-      const result = await claimChannelReward(channelUrl);
-      toast.success(result.message);
-      await fetchUser(user.telegramId);
-    } catch (e: any) {
-      toast.error(e.message || 'Не удалось получить награду', { id: 'claim-reward-error' });
-    } finally {
-      setClaimingChannel(null);
-    }
-  };
-
   const getOwnedWork = (workCardId: string) => ownedWorks.find(work => work.workCardId === workCardId);
 
   const getPendingWorkIncome = (workCardId: string, profitPerHour: number) => {
@@ -310,6 +258,27 @@ function App() {
     }
   };
 
+  const handleTransferStars = async () => {
+    if (!user) return;
+    if (transferLoading) return;
+
+    setTransferLoading(true);
+    try {
+      const amount = Number(transferAmount);
+      await starsTransferApi.transferByTelegramId(recipientTelegramId, amount, transferNote);
+      await fetchUser(user.telegramId);
+      toast.success(`Перевод ${Math.floor(amount)} ⭐ выполнен`);
+      setTransferOpen(false);
+      setRecipientTelegramId('');
+      setTransferAmount('');
+      setTransferNote('');
+    } catch (e: any) {
+      toast.error(e.message || 'Не удалось выполнить перевод');
+    } finally {
+      setTransferLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-[100dvh] h-[100dvh] bg-dark text-white">
       <Toaster 
@@ -324,17 +293,25 @@ function App() {
 
       {/* Основной контент */}
       <div className="h-[100dvh] bg-dark text-white flex flex-col overflow-hidden">
-        <div className="px-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-3 flex items-center justify-between gap-3">
+        <div className="px-4 pt-[calc(2.25rem+env(safe-area-inset-top))] pb-4 flex items-center justify-between gap-3">
           <div className="text-sm bg-slate-900/80 border border-slate-700 rounded-xl px-3 py-2.5 shadow-lg">
             <div className="text-slate-300">ID: <span className="text-cyan-300 font-semibold">{user.telegramId}</span></div>
             <div className="text-slate-300">Баланс: <span className="text-yellow-300 font-semibold">{user.stars} ⭐</span></div>
           </div>
-          <button
-            onClick={() => setEarnOpen(true)}
-            className="bg-emerald-500 hover:bg-emerald-400 text-black font-bold px-5 py-2.5 rounded-xl text-lg leading-none"
-          >
-            Заработать
-          </button>
+          <div className="flex flex-col gap-2">
+            <button
+              onClick={() => setEarnOpen(true)}
+              className="bg-emerald-500 hover:bg-emerald-400 text-black font-bold px-5 py-2.5 rounded-xl text-lg leading-none"
+            >
+              Заработать
+            </button>
+            <button
+              onClick={() => setTransferOpen(true)}
+              className="bg-yellow-400 hover:bg-yellow-300 text-black font-bold px-4 py-2 rounded-xl text-sm leading-none"
+            >
+              Отправить ⭐
+            </button>
+          </div>
         </div>
 
         {/* Аватар Паши - занимает всё свободное место */}
@@ -427,139 +404,118 @@ function App() {
               <h3 className="text-lg font-bold">Заработать ⭐</h3>
               <button onClick={() => setEarnOpen(false)} className="text-xl">✕</button>
             </div>
-            <div className="mb-4 grid grid-cols-2 gap-2">
-              <button
-                onClick={() => setEarnTab('social')}
-                className={`rounded-lg py-2 font-semibold transition ${
-                  earnTab === 'social' ? 'bg-cyan-500 text-black' : 'bg-slate-800 text-slate-300'
-                }`}
-              >
-                Social tasks
-              </button>
-              <button
-                onClick={() => setEarnTab('jobs')}
-                className={`rounded-lg py-2 font-semibold transition ${
-                  earnTab === 'jobs' ? 'bg-cyan-500 text-black' : 'bg-slate-800 text-slate-300'
-                }`}
-              >
-                Работы
-              </button>
+            <div>
+              <p className="text-sm text-slate-300 mb-4">
+                Разблокируй работу за звезды и собирай прибыль в час, как в Hamster-механике.
+              </p>
+              {jobsLoading && (
+                <div className="text-sm text-slate-300 mb-3">Загрузка работ...</div>
+              )}
+              <div className="grid grid-cols-2 gap-3">
+                {workCards.map((work) => {
+                  const owned = getOwnedWork(work.id);
+                  const pendingIncome = getPendingWorkIncome(work.id, work.profitPerHour);
+
+                  return (
+                    <div key={work.id} className="rounded-xl bg-slate-800 p-3 border border-slate-700">
+                      <div className="w-full h-20 rounded-lg overflow-hidden bg-slate-700 mb-2 flex items-center justify-center">
+                        {work.imageUrl ? (
+                          <img
+                            src={work.imageUrl}
+                            alt={work.title}
+                            className="w-full h-full object-cover"
+                            onError={(event) => {
+                              event.currentTarget.style.display = 'none';
+                            }}
+                          />
+                        ) : (
+                          <span className="text-2xl">💼</span>
+                        )}
+                      </div>
+                      <div className="text-sm font-bold">{work.title}</div>
+                      <div className="text-[11px] text-slate-400">{work.description}</div>
+                      <div className="text-xs text-yellow-300 mt-2">Прибыль в час: +{work.profitPerHour} ⭐</div>
+                      <div className="text-xs text-slate-400 mt-1">
+                        {owned ? `lvl 1 · накоплено: ${pendingIncome} ⭐` : `Unlock: ${work.unlockPrice} ⭐`}
+                      </div>
+                      <button
+                        onClick={() => (owned ? handleClaimWorkIncome(work) : handleBuyWork(work))}
+                        disabled={processingWorkId === work.id}
+                        className={`w-full mt-2 py-2 rounded-lg font-semibold ${
+                          owned
+                            ? 'bg-emerald-500 hover:bg-emerald-400 text-black'
+                            : 'bg-cyan-500 hover:bg-cyan-400 text-black'
+                        } disabled:bg-slate-600 disabled:text-slate-300`}
+                      >
+                        {processingWorkId === work.id
+                          ? 'Обработка...'
+                          : owned
+                            ? `Забрать +${pendingIncome} ⭐`
+                            : `Купить за ${work.unlockPrice} ⭐`}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+              {!jobsLoading && workCards.length === 0 && (
+                <div className="text-sm text-slate-400 mt-2">Работы пока не настроены в базе.</div>
+              )}
+              <p className="text-xs text-slate-400 mt-3">
+                Изображения работ можно класть в `client/public/works/`.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {transferOpen && (
+        <div className="fixed inset-0 z-[70] bg-black/80 backdrop-blur-sm flex items-end">
+          <div className="w-full bg-slate-900 rounded-t-2xl p-4 max-h-[70vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold">Перевод звёзд ⭐</h3>
+              <button onClick={() => setTransferOpen(false)} className="text-xl">✕</button>
             </div>
 
-            {earnTab === 'social' && (
+            <div className="space-y-3">
               <div>
-                <p className="text-sm text-slate-300 mb-4">
-                  Подпишись на канал и получи награду. `minudefi` всегда вверху списка.
-                </p>
-                <div className="space-y-3">
-                  {SOCIAL_TASKS.map((task) => (
-                    <div key={task.id} className="rounded-xl bg-slate-800 p-3 border border-slate-700">
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className="w-10 h-10 rounded-lg overflow-hidden bg-slate-700 flex items-center justify-center text-sm font-bold text-cyan-300">
-                          {task.iconPath ? (
-                            <img
-                              src={getAssetUrl(task.iconPath)}
-                              alt={task.title}
-                              className="w-full h-full object-cover"
-                              onError={(event) => {
-                                event.currentTarget.style.display = 'none';
-                              }}
-                            />
-                          ) : (
-                            task.title.slice(0, 2).toUpperCase()
-                          )}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="text-sm font-semibold text-white">{task.title}</div>
-                          <div className="text-xs text-cyan-300 truncate">{task.channelUrl}</div>
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => openTelegramLink(task.channelUrl)}
-                          className="flex-1 bg-blue-500 hover:bg-blue-400 text-white font-semibold py-2 rounded-lg"
-                        >
-                          Перейти
-                        </button>
-                        <button
-                          onClick={() => handleClaimReward(task.channelUrl)}
-                          disabled={!!claimingChannel}
-                          className="flex-1 bg-emerald-500 hover:bg-emerald-400 disabled:bg-slate-600 text-black font-semibold py-2 rounded-lg"
-                        >
-                          {claimingChannel === task.channelUrl ? 'Проверяем...' : `Получить +${task.rewardStars} ⭐`}
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <label className="block text-sm text-slate-300 mb-1">Telegram ID получателя</label>
+                <input
+                  value={recipientTelegramId}
+                  onChange={(event) => setRecipientTelegramId(event.target.value.replace(/[^\d]/g, ''))}
+                  inputMode="numeric"
+                  placeholder="Например: 123456789"
+                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-cyan-400"
+                />
               </div>
-            )}
 
-            {earnTab === 'jobs' && (
               <div>
-                <p className="text-sm text-slate-300 mb-4">
-                  Разблокируй работу за звезды и собирай прибыль в час, как в Hamster-механике.
-                </p>
-                {jobsLoading && (
-                  <div className="text-sm text-slate-300 mb-3">Загрузка работ...</div>
-                )}
-                <div className="grid grid-cols-2 gap-3">
-                  {workCards.map((work) => {
-                    const owned = getOwnedWork(work.id);
-                    const pendingIncome = getPendingWorkIncome(work.id, work.profitPerHour);
-
-                    return (
-                      <div key={work.id} className="rounded-xl bg-slate-800 p-3 border border-slate-700">
-                        <div className="w-full h-20 rounded-lg overflow-hidden bg-slate-700 mb-2 flex items-center justify-center">
-                          {work.imageUrl ? (
-                            <img
-                              src={work.imageUrl}
-                              alt={work.title}
-                              className="w-full h-full object-cover"
-                              onError={(event) => {
-                                event.currentTarget.style.display = 'none';
-                              }}
-                            />
-                          ) : (
-                            <span className="text-2xl">💼</span>
-                          )}
-                        </div>
-                        <div className="text-sm font-bold">{work.title}</div>
-                        <div className="text-[11px] text-slate-400">{work.description}</div>
-                        <div className="text-xs text-yellow-300 mt-2">Прибыль в час: +{work.profitPerHour} ⭐</div>
-                        <div className="text-xs text-slate-400 mt-1">
-                          {owned ? `lvl 1 · накоплено: ${pendingIncome} ⭐` : `Unlock: ${work.unlockPrice} ⭐`}
-                        </div>
-                        <button
-                          onClick={() => (owned ? handleClaimWorkIncome(work) : handleBuyWork(work))}
-                          disabled={processingWorkId === work.id}
-                          className={`w-full mt-2 py-2 rounded-lg font-semibold ${
-                            owned
-                              ? 'bg-emerald-500 hover:bg-emerald-400 text-black'
-                              : 'bg-cyan-500 hover:bg-cyan-400 text-black'
-                          } disabled:bg-slate-600 disabled:text-slate-300`}
-                        >
-                          {processingWorkId === work.id
-                            ? 'Обработка...'
-                            : owned
-                              ? `Забрать +${pendingIncome} ⭐`
-                              : `Купить за ${work.unlockPrice} ⭐`}
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-                {!jobsLoading && workCards.length === 0 && (
-                  <div className="text-sm text-slate-400 mt-2">Работы пока не настроены в базе.</div>
-                )}
-                <p className="text-xs text-slate-400 mt-3">
-                  Изображения работ можно класть в `client/public/works/`, а иконки каналов - в `client/public/social/`.
-                </p>
+                <label className="block text-sm text-slate-300 mb-1">Сумма ⭐</label>
+                <input
+                  value={transferAmount}
+                  onChange={(event) => setTransferAmount(event.target.value.replace(/[^\d]/g, ''))}
+                  inputMode="numeric"
+                  placeholder="Например: 50"
+                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-cyan-400"
+                />
               </div>
-            )}
 
-            <div className="mt-4 text-xs text-slate-400">
-              Если подписка подтверждается, но награда не выдается - добавь бота в админы канала и проверь деплой `claim-channel-reward`.
+              <div>
+                <label className="block text-sm text-slate-300 mb-1">Комментарий (опционально)</label>
+                <input
+                  value={transferNote}
+                  onChange={(event) => setTransferNote(event.target.value)}
+                  placeholder="За помощь / подарок"
+                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-cyan-400"
+                />
+              </div>
+
+              <button
+                onClick={handleTransferStars}
+                disabled={transferLoading || !recipientTelegramId || !transferAmount}
+                className="w-full bg-yellow-400 hover:bg-yellow-300 disabled:bg-slate-600 disabled:text-slate-300 text-black font-bold py-3 rounded-lg"
+              >
+                {transferLoading ? 'Отправляем...' : 'Отправить звезды'}
+              </button>
             </div>
           </div>
         </div>

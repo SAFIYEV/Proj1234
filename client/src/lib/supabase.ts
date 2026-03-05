@@ -225,12 +225,51 @@ export interface Database {
           total_earned?: number
         }
       }
+      star_transfers: {
+        Row: {
+          id: string
+          sender_user_id: string
+          recipient_user_id: string
+          amount: number
+          note: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          sender_user_id: string
+          recipient_user_id: string
+          amount: number
+          note?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          sender_user_id?: string
+          recipient_user_id?: string
+          amount?: number
+          note?: string | null
+          created_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      transfer_stars: {
+        Args: {
+          p_sender_telegram_id: string
+          p_recipient_telegram_id: string
+          p_amount: number
+          p_note?: string | null
+        }
+        Returns: {
+          success: boolean
+          sender_stars: number
+          recipient_stars: number
+          transfer_id: string
+        }
+      }
     }
     Enums: {
       item_type: 'UNDERWEAR' | 'SOCKS' | 'SHOES' | 'PANTS' | 'RING' | 'SHIRT' | 'NECKLACE' | 'GLASSES' | 'CAP'
